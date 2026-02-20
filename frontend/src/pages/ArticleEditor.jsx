@@ -663,14 +663,14 @@ const ArticleEditor = () => {
             </CardHeader>
             <CardContent>
               <Select 
-                value={article.contact_person_id || ""} 
-                onValueChange={(value) => setArticle(prev => ({ ...prev, contact_person_id: value || null }))}
+                value={article.contact_person_id || "none"} 
+                onValueChange={(value) => setArticle(prev => ({ ...prev, contact_person_id: value === "none" ? null : value }))}
               >
                 <SelectTrigger data-testid="contact-person-select">
                   <SelectValue placeholder="Ansprechpartner wählen..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">
+                  <SelectItem value="none">
                     <span className="text-muted-foreground">Kein Ansprechpartner</span>
                   </SelectItem>
                   {users.map((u) => (
