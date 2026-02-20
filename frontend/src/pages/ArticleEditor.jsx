@@ -877,7 +877,7 @@ const ArticleEditor = () => {
                       size="sm"
                       variant="outline"
                       onClick={() => {
-                        const pdfUrl = `${API}/documents/${pdfDialog.preview.document_id}/pdf`;
+                        const pdfUrl = `${API}/documents/${pdfDialog.preview.document_id}/pdf-embed`;
                         window.open(pdfUrl, '_blank');
                       }}
                       className="h-7 text-xs"
@@ -888,7 +888,7 @@ const ArticleEditor = () => {
                   </div>
                 </div>
                 <iframe
-                  src={`${API}/documents/${pdfDialog.preview.document_id}/pdf`}
+                  src={`${API}/documents/${pdfDialog.preview.document_id}/pdf-embed`}
                   className="w-full h-64"
                   title="PDF Vorschau"
                 />
