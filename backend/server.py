@@ -1033,31 +1033,60 @@ async def semantic_search(
     sources = []
     seen_articles = set()
     
-    # First: MongoDB keyword search (more reliable for exact matches)
-    keywords = query.query.lower().split()
+    # Extract key terms for strict matching
+    query_lower = query.query.lower()
+    key_terms = [w for w in query_lower.split() if len(w) > 3]
+    
+    # First: MongoDB keyword search with strict relevance scoring
     mongo_query = {"$or": [
         {"title": {"$regex": query.query, "$options": "i"}},
         {"content": {"$regex": query.query, "$options": "i"}},
         {"summary": {"$regex": query.query, "$options": "i"}},
-        {"tags": {"$in": keywords}}
+        {"tags": {"$in": key_terms}}
     ]}
     
-    keyword_articles = await db.articles.find(mongo_query, {"_id": 0}).limit(query.top_k * 2).to_list(query.top_k * 2)
+    keyword_articles = await db.articles.find(mongo_query, {"_id": 0}).limit(query.top_k * 3).to_list(query.top_k * 3)
     
     for art in keyword_articles:
         if art["article_id"] not in seen_articles:
+            # Calculate relevance score based on keyword presence
+            title_lower = art["title"].lower()
+            content_lower = art.get("content", "").lower()
+            
+            # Count how many key terms appear in title/content
+            title_matches = sum(1 for term in key_terms if term in title_lower)
+            content_matches = sum(1 for term in key_terms if term in content_lower)
+            
+            # Skip if no key terms match at all
+            if title_matches == 0 and content_matches == 0:
+                continue
+            
+            # Calculate score: title matches are worth more
+            score = (title_matches * 0.3 + content_matches * 0.1) / max(len(key_terms), 1)
+            score = min(score + 0.5, 1.0)  # Base score + matches
+            
+            # Find the best matching snippet from content
+            snippet = art.get("summary", "")
+            content = art.get("content", "")
+            
+            # Find snippet containing query terms
+            for term in key_terms:
+                if term in content_lower:
+                    idx = content_lower.find(term)
+                    start = max(0, idx - 100)
+                    end = min(len(content), idx + 200)
+                    snippet = "..." + content[start:end].strip() + "..."
+                    break
+            
             seen_articles.add(art["article_id"])
-            # Higher score for title matches
-            title_match = query.query.lower() in art["title"].lower()
-            score = 0.9 if title_match else 0.7
             sources.append(SearchResult(
                 article_id=art["article_id"],
                 title=art["title"],
-                content_snippet=art.get("summary", art["content"][:200]),
+                content_snippet=snippet[:300] if snippet else content[:300],
                 score=score
             ))
     
-    # Second: Semantic search in Pinecone (for conceptual matches)
+    # Second: Semantic search in Pinecone (only if we need more results)
     if pinecone_index and len(sources) < query.top_k:
         try:
             query_embedding = await get_embedding(query.query)
@@ -1070,47 +1099,54 @@ async def semantic_search(
             
             for match in results.matches:
                 article_id = match.metadata.get("article_id")
-                if article_id and article_id not in seen_articles:
+                # Only add if highly relevant (score > 0.7) and not already in results
+                if article_id and article_id not in seen_articles and match.score > 0.7:
                     seen_articles.add(article_id)
                     sources.append(SearchResult(
                         article_id=article_id,
                         title=match.metadata.get("title", ""),
-                        content_snippet=match.metadata.get("chunk", "")[:200],
-                        score=match.score * 0.8  # Slightly lower weight for semantic matches
+                        content_snippet=match.metadata.get("chunk", "")[:300],
+                        score=match.score * 0.6  # Lower weight for semantic-only matches
                     ))
         except Exception as e:
             logger.error(f"Pinecone search failed: {e}")
     
-    # Sort by score descending
+    # Sort by score descending and limit
     sources = sorted(sources, key=lambda x: x.score, reverse=True)[:query.top_k]
     
-    # Generate AI answer
-    context = "\n\n".join([f"### {s.title}\n{s.content_snippet}" for s in sources])
+    # Generate AI answer - only use top 3 most relevant sources
+    top_sources = sources[:3]
+    context = "\n\n".join([f"### {s.title} (Relevanz: {int(s.score*100)}%)\n{s.content_snippet}" for s in top_sources])
     
-    if context:
+    if context and top_sources:
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
             session_id=f"search_{uuid.uuid4().hex[:8]}",
-            system_message="Du bist ein hilfreicher Wissensassistent. Beantworte Fragen basierend auf dem gegebenen Kontext. Antworte immer auf Deutsch."
+            system_message="Du bist ein präziser Wissensassistent für CANUSA Reiseinformationen. Beantworte NUR basierend auf den bereitgestellten Quellen. Wenn die Quellen keine relevante Information enthalten, sage das klar. Antworte auf Deutsch."
         ).with_model("gemini", "gemini-3-flash-preview")
         
-        answer_prompt = f"""Basierend auf dem folgenden Wissenskontext, beantworte die Frage des Nutzers präzise und hilfreich.
+        answer_prompt = f"""Beantworte die folgende Frage NUR basierend auf den bereitgestellten Quellen.
+Ignoriere Informationen, die nicht zur Frage passen.
 
-KONTEXT:
+QUELLEN:
 {context}
 
 FRAGE: {query.query}
 
-Gib eine klare, strukturierte Antwort. Wenn der Kontext nicht ausreicht, sage das ehrlich."""
+REGELN:
+1. Nutze NUR Informationen aus den Quellen, die direkt zur Frage passen
+2. Wenn keine Quelle zur Frage passt, sage: "Die gefundenen Artikel enthalten keine spezifischen Informationen zu dieser Frage."
+3. Nenne die relevante Quelle in deiner Antwort
+4. Sei präzise und vermeide Spekulationen"""
         
         try:
             answer_message = UserMessage(text=answer_prompt)
             ai_answer = await chat.send_message(answer_message)
         except Exception as e:
             logger.error(f"AI answer generation failed: {e}")
-            ai_answer = "Basierend auf den gefundenen Artikeln konnte ich relevante Informationen finden. Bitte prüfen Sie die Quellen unten."
+            ai_answer = "Die Suche hat relevante Artikel gefunden. Bitte prüfen Sie die Quellen unten."
     else:
-        ai_answer = "Leider konnte ich keine relevanten Artikel zu Ihrer Anfrage finden. Bitte versuchen Sie eine andere Suche oder erstellen Sie einen neuen Wissensartikel."
+        ai_answer = "Leider konnte ich keine relevanten Artikel zu Ihrer Anfrage finden. Versuchen Sie andere Suchbegriffe."
     
     return AIAnswer(
         answer=ai_answer,
