@@ -119,7 +119,7 @@ const ArticleEditor = () => {
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [tagInput, setTagInput] = useState("");
-  const [pdfDialog, setPdfDialog] = useState({ open: false });
+  const [pdfDialog, setPdfDialog] = useState({ open: false, preview: null });
   const [categoryDialog, setCategoryDialog] = useState({ open: false });
   const [newCategoryName, setNewCategoryName] = useState("");
   const [newCategoryParent, setNewCategoryParent] = useState(null);
