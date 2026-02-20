@@ -517,7 +517,28 @@ const ArticleEditor = () => {
 
               {/* Summary */}
               <div className="space-y-2">
-                <Label htmlFor="summary">Zusammenfassung</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="summary">Zusammenfassung</Label>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleGenerateSummary}
+                    disabled={generatingSummary || !article.content}
+                    className="h-7 text-xs"
+                  >
+                    {generatingSummary ? (
+                      <>
+                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                        Generiere...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-3 h-3 mr-1" />
+                        Automatisch erstellen
+                      </>
+                    )}
+                  </Button>
+                </div>
                 <Input
                   id="summary"
                   value={article.summary || ""}
