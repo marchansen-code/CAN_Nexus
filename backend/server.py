@@ -257,7 +257,7 @@ async def create_session(request: Request, response: Response):
             "email": auth_data["email"],
             "name": auth_data["name"],
             "picture": auth_data.get("picture"),
-            "role": "editor",
+            "role": "viewer",  # New users start as viewer until admin changes role
             "recently_viewed": [],
             "created_at": datetime.now(timezone.utc).isoformat()
         }
