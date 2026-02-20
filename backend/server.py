@@ -657,11 +657,27 @@ async def delete_article(
 async def upload_document(
     file: UploadFile = File(...),
     target_language: str = "de",
+    force: bool = False,
     user: User = Depends(get_current_user)
 ):
     """Upload a PDF document for processing"""
     if not file.filename.lower().endswith('.pdf'):
         raise HTTPException(status_code=400, detail="Only PDF files are allowed")
+    
+    # Check for duplicate filename
+    existing_doc = await db.documents.find_one({"filename": file.filename})
+    if existing_doc and not force:
+        raise HTTPException(
+            status_code=409, 
+            detail=f"Eine Datei mit dem Namen '{file.filename}' existiert bereits. Verwenden Sie force=true zum Überschreiben."
+        )
+    
+    # If force=true and file exists, delete the old one
+    if existing_doc and force:
+        old_path = existing_doc.get("file_path")
+        if old_path and os.path.exists(old_path):
+            os.remove(old_path)
+        await db.documents.delete_one({"document_id": existing_doc["document_id"]})
     
     # Save file permanently for embedding
     content = await file.read()
@@ -669,7 +685,6 @@ async def upload_document(
     permanent_path = f"/tmp/pdfs/{doc_id}.pdf"
     
     # Create directory if needed
-    import os
     os.makedirs("/tmp/pdfs", exist_ok=True)
     
     with open(permanent_path, "wb") as f:
