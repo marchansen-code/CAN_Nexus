@@ -245,7 +245,7 @@ def authenticated_session():
     # Create a test user and session
     test_user_id = f"test_user_{uuid.uuid4().hex[:8]}"
     test_email = f"test_{uuid.uuid4().hex[:6]}@canusa.de"
-    session_token = f"test_session_{datetime.now().timestamp()}"
+    session_token = f"test_session_{int(time.time())}"
     
     # Direct DB insert via API would require auth, so we use a mock session
     # For this test, we'll try to use the cookie-based auth
