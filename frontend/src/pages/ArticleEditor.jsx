@@ -250,7 +250,7 @@ const ArticleEditor = () => {
     if (isNew) return;
     
     try {
-      const response = await axios.post(`${API}/articles/${id}/favorite`);
+      const response = await axios.post(`${API}/articles/${articleId}/favorite`);
       setIsFavorite(response.data.favorited);
       toast.success(response.data.message);
     } catch (error) {
