@@ -1058,6 +1058,9 @@ async def get_stats(user: User = Depends(get_current_user)):
     # Get recent articles
     recent_articles = await db.articles.find({}, {"_id": 0}).sort("updated_at", -1).limit(5).to_list(5)
     
+    # Get top viewed articles (Beliebteste Artikel)
+    top_articles = await db.articles.find({}, {"_id": 0}).sort("view_count", -1).limit(5).to_list(5)
+    
     # Get favorite articles for current user
     favorite_articles = await db.articles.find(
         {"favorited_by": user.user_id},
@@ -1087,6 +1090,7 @@ async def get_stats(user: User = Depends(get_current_user)):
         "total_documents": total_documents,
         "pending_documents": pending_documents,
         "recent_articles": recent_articles,
+        "top_articles": top_articles,
         "favorite_articles": favorite_articles,
         "recently_viewed": recently_viewed,
         "user_stats": {
