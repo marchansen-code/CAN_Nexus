@@ -964,9 +964,34 @@ async def semantic_search(
 ):
     """Perform semantic search and generate AI answer"""
     sources = []
+    seen_articles = set()
     
-    # Search in Pinecone if available
-    if pinecone_index:
+    # First: MongoDB keyword search (more reliable for exact matches)
+    keywords = query.query.lower().split()
+    mongo_query = {"$or": [
+        {"title": {"$regex": query.query, "$options": "i"}},
+        {"content": {"$regex": query.query, "$options": "i"}},
+        {"summary": {"$regex": query.query, "$options": "i"}},
+        {"tags": {"$in": keywords}}
+    ]}
+    
+    keyword_articles = await db.articles.find(mongo_query, {"_id": 0}).limit(query.top_k * 2).to_list(query.top_k * 2)
+    
+    for art in keyword_articles:
+        if art["article_id"] not in seen_articles:
+            seen_articles.add(art["article_id"])
+            # Higher score for title matches
+            title_match = query.query.lower() in art["title"].lower()
+            score = 0.9 if title_match else 0.7
+            sources.append(SearchResult(
+                article_id=art["article_id"],
+                title=art["title"],
+                content_snippet=art.get("summary", art["content"][:200]),
+                score=score
+            ))
+    
+    # Second: Semantic search in Pinecone (for conceptual matches)
+    if pinecone_index and len(sources) < query.top_k:
         try:
             query_embedding = await get_embedding(query.query)
             results = pinecone_index.query(
@@ -976,7 +1001,6 @@ async def semantic_search(
                 namespace="articles"
             )
             
-            seen_articles = set()
             for match in results.matches:
                 article_id = match.metadata.get("article_id")
                 if article_id and article_id not in seen_articles:
@@ -985,28 +1009,13 @@ async def semantic_search(
                         article_id=article_id,
                         title=match.metadata.get("title", ""),
                         content_snippet=match.metadata.get("chunk", "")[:200],
-                        score=match.score
+                        score=match.score * 0.8  # Slightly lower weight for semantic matches
                     ))
         except Exception as e:
             logger.error(f"Pinecone search failed: {e}")
     
-    # Fallback to MongoDB text search
-    if not sources:
-        articles = await db.articles.find(
-            {"$or": [
-                {"title": {"$regex": query.query, "$options": "i"}},
-                {"content": {"$regex": query.query, "$options": "i"}}
-            ]},
-            {"_id": 0}
-        ).limit(query.top_k).to_list(query.top_k)
-        
-        for art in articles:
-            sources.append(SearchResult(
-                article_id=art["article_id"],
-                title=art["title"],
-                content_snippet=art["content"][:200],
-                score=0.5
-            ))
+    # Sort by score descending
+    sources = sorted(sources, key=lambda x: x.score, reverse=True)[:query.top_k]
     
     # Generate AI answer
     context = "\n\n".join([f"### {s.title}\n{s.content_snippet}" for s in sources])
