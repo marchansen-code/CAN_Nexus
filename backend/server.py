@@ -358,6 +358,39 @@ async def update_user_role(
     
     return {"message": f"User role updated to {role_update.role}"}
 
+@api_router.put("/users/{user_id}/block")
+async def toggle_user_block(
+    user_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Block or unblock a user (admin only)"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can block users")
+    
+    if user_id == current_user.user_id:
+        raise HTTPException(status_code=400, detail="Cannot block yourself")
+    
+    # Get current block status
+    user_doc = await db.users.find_one({"user_id": user_id})
+    if not user_doc:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    new_status = not user_doc.get("is_blocked", False)
+    
+    await db.users.update_one(
+        {"user_id": user_id},
+        {"$set": {"is_blocked": new_status}}
+    )
+    
+    # Delete active sessions if blocking
+    if new_status:
+        await db.sessions.delete_many({"user_id": user_id})
+    
+    return {
+        "message": f"User {'blocked' if new_status else 'unblocked'}",
+        "is_blocked": new_status
+    }
+
 # ==================== CATEGORY ENDPOINTS ====================
 
 @api_router.get("/categories", response_model=List[Dict])
