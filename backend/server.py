@@ -837,6 +837,28 @@ async def get_document(document_id: str, user: User = Depends(get_current_user))
         raise HTTPException(status_code=404, detail="Document not found")
     return doc
 
+@api_router.delete("/documents/{document_id}")
+async def delete_document(document_id: str, user: User = Depends(get_current_user)):
+    """Delete a document (admin only)"""
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can delete documents")
+    
+    doc = await db.documents.find_one({"document_id": document_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    # Delete temp file if exists
+    if doc.get("temp_path"):
+        try:
+            import os
+            if os.path.exists(doc["temp_path"]):
+                os.remove(doc["temp_path"])
+        except:
+            pass
+    
+    await db.documents.delete_one({"document_id": document_id})
+    return {"message": "Document deleted"}
+
 @api_router.post("/documents/{document_id}/create-article")
 async def create_article_from_document(
     document_id: str,
