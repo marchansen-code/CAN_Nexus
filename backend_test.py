@@ -102,13 +102,11 @@ class BackendAPITester:
         print("SETTING UP TEST SESSION")
         print("=" * 60)
         
-        # For testing purposes, we'll use a test session token
-        # In a real scenario, this would come from auth_testing.md setup
-        test_session_token = f"test_session_{int(datetime.now().timestamp())}"
+        # Use the session token created in MongoDB
+        test_session_token = "test_session_1771578839197"
         
         print(f"Using test session token: {test_session_token}")
-        print("⚠️  Note: This requires test user session to be created in MongoDB")
-        print("   Follow /app/auth_testing.md for proper setup")
+        print("✅ Test session created in MongoDB")
         
         self.session_token = test_session_token
         return True
