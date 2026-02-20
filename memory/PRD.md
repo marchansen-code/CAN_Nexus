@@ -10,7 +10,7 @@ KI-gestützte Wissensmanagement-Plattform für CANUSA Touristik GmbH & Co. KG un
 4. **Administrator** - Verwaltet Benutzer und Zugriffsrechte
 
 ## Core Requirements (Static)
-- [x] PDF-Import mit KI-Zusammenfassung, Tabellen und Struktur
+- [x] PDF-Import mit Struktur-Erhaltung
 - [x] Semantische Suche mit RAG
 - [x] Hierarchische Kategoriestruktur
 - [x] Workflow-Management (Draft/Review/Published)
@@ -28,7 +28,7 @@ KI-gestützte Wissensmanagement-Plattform für CANUSA Touristik GmbH & Co. KG un
 
 ## What's Been Implemented
 
-### Phase 1 - MVP (20.02.2026)
+### Phase 1-4 - Core Features (Completed)
 - ✅ Landing Page mit Google Auth Login
 - ✅ Dashboard mit Statistiken
 - ✅ KI-Suche mit semantischer RAG-Abfrage
@@ -36,63 +36,59 @@ KI-gestützte Wissensmanagement-Plattform für CANUSA Touristik GmbH & Co. KG un
 - ✅ PDF-Upload und automatische Verarbeitung
 - ✅ Kategorieverwaltung (Baumstruktur)
 - ✅ Widget-API für externe Integration
-
-### Phase 2 - Enhanced Features (20.02.2026)
 - ✅ Rich-Text-Editor mit TipTap
-- ✅ PDF-Import direkt im Editor (mit Tabellen/Struktur)
-- ✅ Copy & Paste mit HTML-Erhaltung
-- ✅ Benutzerverwaltung mit Rollensystem
-
-### Phase 3 - CANUSA Customization (20.02.2026)
-- ✅ Domain-Beschränkung auf @canusa.de und @cu-travel.com
-- ✅ CANUSA-Farbschema (Rot) und Branding
-- ✅ Startseite nur für Mitarbeiter mit Social Media Links
-- ✅ Simultaneousbearbeitung mit Präsenzanzeige
-- ✅ Hierarchische Kategorien im Editor mit Hinzufügen-Option
-- ✅ Sichtbarkeitsberechtigungen (Alle/Editoren/Admins)
-- ✅ Favoriten-System
-- ✅ Dashboard: Favoriten und zuletzt angesehene Artikel
-- ✅ Benutzerstatistik (eigene Artikel/Dokumente)
-
-### Phase 4 - UI/UX Refinements (20.02.2026)
 - ✅ Rollenbasierte Sidebar-Navigation
-- ✅ Separate Read-Only Artikelansicht
-- ✅ Edit-Button nur für Editor/Admin sichtbar
-- ✅ Neue Benutzer bekommen automatisch "Viewer" Rolle
-- ✅ Automatische Zusammenfassungserstellung via KI
+- ✅ Vollwertiger WYSIWYG-Editor
 
-### Phase 5 - CANUSA Nexus Rebranding (20.02.2026)
+### Phase 5 - CANUSA Nexus Rebranding (Completed)
 - ✅ Umbenennung zu "CANUSA Nexus - The Knowledge Hub"
-- ✅ Vollwertiger WYSIWYG-Editor mit:
-  - Textfarben (10 Farben inkl. CANUSA Rot)
-  - Hervorhebungen (5 Farben)
-  - YouTube-Video-Einbettung
-  - Erweiterte Tabellenfunktionen
-  - Hoch-/Tiefstellung
-  - Horizontale Linien
-  - Code-Blöcke und Zitate
-- ✅ Full-Width Artikelansicht (nicht boxed)
-- ✅ Top 10 Artikel-Sidebar (systemweit, nach Views sortiert)
-- ✅ Kategorien-Baum mit Unterartikeln in Sidebar
+- ✅ Full-Width Artikelansicht
+- ✅ Top 10 Artikel-Sidebar (systemweit)
 - ✅ View-Count-Tracking für Artikel
-- ✅ PDF-Import mit Vorschau-Dialog
-- ✅ Separate Zusammenfassungs-Übernahme aus PDFs
+
+### Phase 6 - Advanced Features (20.02.2026)
+- ✅ **Dark/Light/Auto Theme-Mode**
+  - Theme-Toggle im Header (Sonne/Mond/Monitor-Symbol + "Mode")
+  - System-Präferenz-Erkennung für "Auto"
+  - Persistenz via LocalStorage
+- ✅ **Admin: Dokumente löschen**
+  - DELETE-Endpoint `/api/documents/{id}`
+  - Trash-Icon nur für Admins sichtbar
+- ✅ **Wissensartikel Split-Layout**
+  - Links: Kategorien-Baum (klickbar mit Unterordnern)
+  - Rechts: Artikelliste mit Suche
+  - Oben: Top 10 meistgesehene Artikel
+- ✅ **Dashboard: Beliebteste Artikel**
+  - Neue Sektion unter "Neueste Artikel"
+  - Rangliste mit Aufrufe-Anzahl
+- ✅ **Admin: User sperren**
+  - PUT-Endpoint `/api/users/{id}/block`
+  - Gesperrte User erhalten 403-Fehler
+  - Sperrung-Badge in Benutzerliste
+- ✅ **Verbesserte KI-Suche**
+  - Keyword + Semantische Suche kombiniert
+  - Höhere Scores für Titel-Treffer
+- ✅ **PDF-Import ohne automatische Zusammenfassung**
+  - Nur Content-Extraktion
+  - HTML-Layout-Erhaltung
+  - PDF-Einbettung als Fallback verfügbar
+- ✅ **Autor unter Artikel anzeigen**
+  - "Verfasst von" Sektion mit Avatar, Name, E-Mail
+- ✅ **Ansprechpartner-Feld im Editor**
+  - Dropdown mit User-Liste in Sidebar
+  - Anzeige in Artikelansicht
 
 ## Prioritized Backlog
 
 ### P0 (Critical) - Completed
-- [x] Core CRUD Operations
-- [x] Authentication with domain restriction
-- [x] PDF Processing with tables
-- [x] Search/RAG
-- [x] Favorites and Recently Viewed
-- [x] Role-based sidebar navigation
-- [x] Read-only article view with edit permissions
-- [x] Full WYSIWYG Editor
-- [x] Top 10 Articles and Category Browser
+- [x] All core features
+- [x] Theme-Mode Toggle
+- [x] User blocking
+- [x] Document deletion
+- [x] Split-Layout Articles
 
-### P1 (High) - PDF Import Enhancement
-- [ ] Bild-Extraktion aus PDFs (Base64 Upload)
+### P1 (High)
+- [ ] Bild-Extraktion aus PDFs (Base64)
 - [ ] OCR für gescannte PDFs
 - [ ] Perfekte Tabellen-Erhaltung mit Styling
 
@@ -103,7 +99,6 @@ KI-gestützte Wissensmanagement-Plattform für CANUSA Touristik GmbH & Co. KG un
 - [ ] WebSocket für Echtzeit-Präsenz (statt Polling)
 
 ### P3 (Nice to Have)
-- [ ] Dark Mode
 - [ ] Mehrsprachige UI
 - [ ] Analytics Dashboard
 - [ ] AI-gestützte Schreibvorschläge
@@ -111,54 +106,55 @@ KI-gestützte Wissensmanagement-Plattform für CANUSA Touristik GmbH & Co. KG un
 ## API Endpoints
 
 ### Auth
-- `POST /api/auth/session` - Session erstellen (Domain-geprüft)
+- `POST /api/auth/session` - Session erstellen
 - `GET /api/auth/me` - Aktueller Benutzer
 - `POST /api/auth/logout` - Abmelden
 
 ### Users
 - `GET /api/users` - Alle Benutzer
-- `PUT /api/users/{id}/role` - Rolle ändern (Admin only)
+- `PUT /api/users/{id}/role` - Rolle ändern
+- `PUT /api/users/{id}/block` - User sperren/entsperren
 
 ### Articles
 - `GET /api/articles` - Alle Artikel
-- `GET /api/articles/top-viewed?limit=N` - Top N Artikel nach Views
-- `GET /api/articles/by-category/{id}` - Artikel nach Kategorie
-- `POST /api/articles` - Artikel erstellen
+- `GET /api/articles/top-viewed` - Top N nach Views
+- `GET /api/articles/by-category/{id}` - Nach Kategorie
+- `POST /api/articles` - Erstellen
 - `GET /api/articles/{id}` - Einzelner Artikel
-- `PUT /api/articles/{id}` - Artikel aktualisieren
-- `DELETE /api/articles/{id}` - Artikel löschen
+- `PUT /api/articles/{id}` - Aktualisieren
+- `DELETE /api/articles/{id}` - Löschen
 - `POST /api/articles/{id}/favorite` - Favorit togglen
-- `POST /api/articles/{id}/viewed` - Als angesehen markieren (inkrementiert view_count)
-- `POST /api/articles/{id}/presence` - Präsenz aktualisieren
-- `POST /api/articles/generate-summary` - KI-Zusammenfassung erstellen
-
-### Categories
-- `GET /api/categories` - Alle Kategorien (hierarchisch)
-- `POST /api/categories` - Kategorie erstellen
+- `POST /api/articles/{id}/viewed` - Als angesehen markieren
+- `POST /api/articles/generate-summary` - KI-Zusammenfassung
 
 ### Documents
 - `POST /api/documents/upload` - PDF hochladen
 - `GET /api/documents` - Alle Dokumente
 - `GET /api/documents/{id}` - Dokumentdetails
+- `GET /api/documents/{id}/pdf` - PDF-Datei streamen
+- `DELETE /api/documents/{id}` - Löschen (Admin only)
+
+### Categories
+- `GET /api/categories` - Alle Kategorien
+- `POST /api/categories` - Erstellen
 
 ### Search
-- `POST /api/search` - Semantische Suche mit KI-Antwort
+- `POST /api/search` - Semantische + Keyword Suche
 
 ### Stats
-- `GET /api/stats` - Dashboard-Statistiken
+- `GET /api/stats` - Dashboard-Statistiken (inkl. top_articles)
 
 ## Admin Users
 - Marc Hansen (marc.hansen@canusa.de) - Administrator
 
 ## Test Coverage
-- Backend: 100% (10/10 Tests in Iteration 4)
+- Backend: 100% (59 Tests)
 - Frontend: 100% (alle UI-Tests bestanden)
 - Last tested: 20.02.2026
 
-## Key UI Components
-- **Landing Page**: CANUSA Nexus branding mit Company-Info
-- **Dashboard**: Statistiken, Favoriten, Zuletzt angesehen
-- **Artikel-Liste**: Filter nach Status und Kategorie
-- **Artikel-Ansicht**: Full-Width mit Top 10 und Kategorien-Sidebar
-- **Artikel-Editor**: Vollwertiger WYSIWYG mit PDF-Import
-- **KI-Suche**: RAG-basierte Suche mit Quellenangaben
+## Key UI Features
+- **Theme Toggle**: Light/Dark/Auto mit Tastenkürzel
+- **Split-Layout**: Kategorien links, Artikel rechts
+- **Top 10 Banner**: Meistgesehene Artikel
+- **User Blocking**: Sperrung mit sofortiger Session-Ungültigkeit
+- **Ansprechpartner**: Pro Artikel zuweisbar
