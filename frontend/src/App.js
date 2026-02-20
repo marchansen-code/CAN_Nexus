@@ -13,6 +13,7 @@ import ArticleEditor from "@/pages/ArticleEditor";
 import Documents from "@/pages/Documents";
 import Categories from "@/pages/Categories";
 import Settings from "@/pages/Settings";
+import UserManagement from "@/pages/UserManagement";
 import Layout from "@/components/Layout";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
