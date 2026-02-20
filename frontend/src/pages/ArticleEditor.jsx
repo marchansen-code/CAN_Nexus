@@ -345,15 +345,10 @@ const ArticleEditor = () => {
     event.target.value = "";
   };
 
-  const insertPdfContent = (doc) => {
+  const insertPdfContent = (doc, includeSummary = false) => {
     let htmlContent = "";
     
-    // Add summary
-    if (doc.summary) {
-      htmlContent += `<h2>Zusammenfassung</h2><p>${doc.summary}</p>`;
-    }
-    
-    // Add headlines
+    // Add headlines as structure
     if (doc.structured_content?.headlines?.length > 0) {
       doc.structured_content.headlines.forEach(headline => {
         htmlContent += `<h3>${headline}</h3>`;
@@ -371,7 +366,6 @@ const ArticleEditor = () => {
     
     // Add tables
     if (doc.structured_content?.tables?.length > 0) {
-      htmlContent += `<h2>Tabellen</h2>`;
       doc.structured_content.tables.forEach(table => {
         htmlContent += table.html;
       });
@@ -379,24 +373,25 @@ const ArticleEditor = () => {
     
     // Add extracted text
     if (doc.extracted_text) {
-      htmlContent += `<h2>Inhalt</h2>`;
       const paragraphs = doc.extracted_text.split('\n\n');
       paragraphs.forEach(p => {
-        if (p.trim()) {
-          htmlContent += `<p>${p.trim()}</p>`;
+        const trimmed = p.trim();
+        if (trimmed && !trimmed.startsWith('---')) {
+          htmlContent += `<p>${trimmed}</p>`;
         }
       });
     }
     
-    // Append to current content
+    // Update article - summary goes to separate field
     setArticle(prev => ({
       ...prev,
       content: prev.content + htmlContent,
-      title: prev.title || doc.filename.replace(".pdf", "")
+      title: prev.title || doc.filename.replace(".pdf", ""),
+      summary: includeSummary && doc.summary ? doc.summary : prev.summary
     }));
     
-    toast.success("PDF-Inhalt eingefügt (inkl. Tabellen und Struktur)");
-    setPdfDialog({ open: false });
+    toast.success("PDF-Inhalt eingefügt");
+    setPdfDialog({ open: false, preview: null });
   };
 
   const getCategoryName = (categoryId) => {
