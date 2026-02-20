@@ -867,31 +867,31 @@ const ArticleEditor = () => {
           ) : (
             // Preview View
             <div className="flex-1 overflow-auto space-y-4">
-              {/* Summary Section - Separate */}
-              {pdfDialog.preview.summary && (
-                <div className="bg-gradient-to-r from-red-50 to-amber-50 border border-red-200 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-semibold text-canusa-dark-blue flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-canusa-red" />
-                      KI-Zusammenfassung
-                    </h4>
+              {/* PDF Preview - Embedded */}
+              <div className="border rounded-lg overflow-hidden bg-slate-100">
+                <div className="flex items-center justify-between p-2 bg-slate-200 border-b">
+                  <span className="text-sm font-medium">{pdfDialog.preview.filename}</span>
+                  <div className="flex gap-2">
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => {
-                        setArticle(prev => ({ ...prev, summary: pdfDialog.preview.summary }));
-                        toast.success("Zusammenfassung übernommen");
+                        const pdfUrl = `${API}/documents/${pdfDialog.preview.document_id}/pdf`;
+                        window.open(pdfUrl, '_blank');
                       }}
                       className="h-7 text-xs"
                     >
-                      In Zusammenfassungsfeld übernehmen
+                      <ExternalLink className="w-3 h-3 mr-1" />
+                      Neuer Tab
                     </Button>
                   </div>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {pdfDialog.preview.summary}
-                  </p>
                 </div>
-              )}
+                <iframe
+                  src={`${API}/documents/${pdfDialog.preview.document_id}/pdf`}
+                  className="w-full h-64"
+                  title="PDF Vorschau"
+                />
+              </div>
 
               {/* Document Info */}
               <div className="flex gap-4 text-sm text-muted-foreground">
