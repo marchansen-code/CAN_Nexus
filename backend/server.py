@@ -640,7 +640,7 @@ HAUPTPUNKTE:
         # Parse response
         original_language = "unbekannt"
         summary = ""
-        structured_content = {"headlines": [], "bulletpoints": [], "tables": []}
+        structured_content = {"headlines": [], "bulletpoints": [], "tables": extracted_tables, "images": extracted_images}
         
         lines = summary_response.split("\n")
         current_section = None
@@ -650,10 +650,14 @@ HAUPTPUNKTE:
                 original_language = line.replace("SPRACHE:", "").strip()
             elif line.startswith("ZUSAMMENFASSUNG:"):
                 current_section = "summary"
+            elif line.startswith("ÜBERSCHRIFTEN:"):
+                current_section = "headlines"
             elif line.startswith("HAUPTPUNKTE:"):
                 current_section = "bulletpoints"
             elif current_section == "summary":
                 summary += line + " "
+            elif current_section == "headlines" and line.strip().startswith("-"):
+                structured_content["headlines"].append(line.strip()[1:].strip())
             elif current_section == "bulletpoints" and line.strip().startswith("-"):
                 structured_content["bulletpoints"].append(line.strip()[1:].strip())
         
