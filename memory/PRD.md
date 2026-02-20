@@ -55,6 +55,17 @@ KI-gestützte Wissensmanagement-Plattform für CANUSA Touristik GmbH & Co. KG un
 - ✅ Benutzerstatistik (eigene Artikel/Dokumente)
 - ✅ Marc Hansen als Administrator gesetzt
 
+### Phase 4 - UI/UX Refinements (20.02.2026)
+- ✅ Rollenbasierte Sidebar-Navigation
+  - Admin: Alle 7 Menüpunkte
+  - Editor: 5 Menüpunkte (ohne Benutzer/Einstellungen)
+  - Viewer: 3 Menüpunkte (Dashboard, KI-Suche, Artikel)
+- ✅ Separate Read-Only Artikelansicht (/articles/:id)
+- ✅ Edit-Button nur für Editor/Admin sichtbar
+- ✅ Neue Benutzer bekommen automatisch "Viewer" Rolle
+- ✅ Automatische Zusammenfassungserstellung via KI im Editor
+- ✅ PDF-Import-Dialog bereinigt (ohne "Aus verarbeiteten Dokumenten" Option)
+
 ## Prioritized Backlog
 
 ### P0 (Critical) - Completed
@@ -63,17 +74,21 @@ KI-gestützte Wissensmanagement-Plattform für CANUSA Touristik GmbH & Co. KG un
 - [x] PDF Processing with tables
 - [x] Search/RAG
 - [x] Favorites and Recently Viewed
+- [x] Role-based sidebar navigation
+- [x] Read-only article view with edit permissions
 
-### P1 (High)
+### P1 (High) - PDF Import Overhaul
 - [ ] Bild-Extraktion aus PDFs (Base64 Upload)
 - [ ] OCR für gescannte PDFs
-- [ ] E-Mail-Benachrichtigungen bei Wiedervorlage
+- [ ] Perfekte Tabellen-Erhaltung mit Styling
+- [ ] Layout-Beibehaltung aus Originalformat
 
 ### P2 (Medium)
 - [ ] Versionierung von Artikeln
 - [ ] Kommentar-System für Reviews
 - [ ] Export zu Word/PDF
 - [ ] Bulk-Import mehrerer PDFs
+- [ ] WebSocket für Echtzeit-Präsenz (statt Polling)
 
 ### P3 (Nice to Have)
 - [ ] Dark Mode
@@ -95,11 +110,13 @@ KI-gestützte Wissensmanagement-Plattform für CANUSA Touristik GmbH & Co. KG un
 ### Articles
 - `GET /api/articles` - Alle Artikel
 - `POST /api/articles` - Artikel erstellen
+- `GET /api/articles/{id}` - Einzelner Artikel
 - `PUT /api/articles/{id}` - Artikel aktualisieren (inkl. visibility)
 - `DELETE /api/articles/{id}` - Artikel löschen
 - `POST /api/articles/{id}/favorite` - Favorit togglen
 - `POST /api/articles/{id}/viewed` - Als angesehen markieren
 - `POST /api/articles/{id}/presence` - Präsenz aktualisieren
+- `POST /api/articles/generate-summary` - KI-Zusammenfassung erstellen
 
 ### Categories
 - `GET /api/categories` - Alle Kategorien (hierarchisch)
@@ -108,6 +125,7 @@ KI-gestützte Wissensmanagement-Plattform für CANUSA Touristik GmbH & Co. KG un
 ### Documents
 - `POST /api/documents/upload` - PDF hochladen
 - `GET /api/documents` - Alle Dokumente
+- `GET /api/documents/{id}` - Dokumentdetails
 
 ### Search
 - `POST /api/search` - Semantische Suche mit KI-Antwort
@@ -115,5 +133,13 @@ KI-gestützte Wissensmanagement-Plattform für CANUSA Touristik GmbH & Co. KG un
 ### Favorites
 - `GET /api/favorites` - Benutzer-Favoriten
 
+### Stats
+- `GET /api/stats` - Dashboard-Statistiken
+
 ## Admin Users
 - Marc Hansen (marc.hansen@canusa.de) - Administrator
+
+## Test Coverage
+- Backend: 100% (24/24 Tests)
+- Frontend: 100% (alle UI-Tests bestanden)
+- Last tested: 20.02.2026
