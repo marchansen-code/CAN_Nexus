@@ -455,6 +455,7 @@ async def create_article(
         summary=article.summary,
         category_id=article.category_id,
         status=article.status,
+        visibility=article.visibility,
         tags=article.tags,
         created_by=user.user_id,
         updated_by=user.user_id
@@ -472,6 +473,49 @@ async def create_article(
         await index_article_in_pinecone(art_doc.article_id, article.title, article.content)
     
     return {k: v for k, v in doc.items() if k != "_id"}
+
+@api_router.post("/articles/generate-summary")
+async def generate_summary(
+    request: Request,
+    user: User = Depends(get_current_user)
+):
+    """Generate a summary from article content using AI"""
+    body = await request.json()
+    content = body.get("content", "")
+    
+    if not content or len(content) < 50:
+        return {"summary": ""}
+    
+    # Strip HTML tags for summary generation
+    import re
+    clean_content = re.sub(r'<[^>]+>', '', content)
+    clean_content = clean_content[:4000]  # Limit content length
+    
+    try:
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"summary_{uuid.uuid4().hex[:8]}",
+            system_message="Du bist ein Experte für das Erstellen von Zusammenfassungen. Antworte immer auf Deutsch."
+        ).with_model("gemini", "gemini-3-flash-preview")
+        
+        summary_prompt = f"""Erstelle eine kurze, prägnante Zusammenfassung (max. 2-3 Sätze) für den folgenden Artikel-Inhalt. Die Zusammenfassung soll den Kerninhalt des Artikels erfassen:
+
+{clean_content}
+
+Zusammenfassung:"""
+        
+        summary_message = UserMessage(text=summary_prompt)
+        summary = await chat.send_message(summary_message)
+        
+        # Clean up the summary
+        summary = summary.strip()
+        if summary.startswith("Zusammenfassung:"):
+            summary = summary[16:].strip()
+        
+        return {"summary": summary}
+    except Exception as e:
+        logger.error(f"Summary generation failed: {e}")
+        return {"summary": ""}
 
 @api_router.put("/articles/{article_id}", response_model=Dict)
 async def update_article(
