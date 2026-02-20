@@ -9,12 +9,14 @@ import {
   Eye,
   Send,
   Clock,
-  Tag
+  Tag,
+  Upload,
+  FileText,
+  Loader2
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -30,8 +32,17 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
+import RichTextEditor from "@/components/RichTextEditor";
 
 const ArticleEditor = () => {
   const navigate = useNavigate();
@@ -48,12 +59,17 @@ const ArticleEditor = () => {
     review_date: null
   });
   const [categories, setCategories] = useState([]);
+  const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [tagInput, setTagInput] = useState("");
+  const [pdfDialog, setPdfDialog] = useState({ open: false });
+  const [importingPdf, setImportingPdf] = useState(false);
+  const [uploadingPdf, setUploadingPdf] = useState(false);
 
   useEffect(() => {
     fetchCategories();
+    fetchDocuments();
     if (!isNew) {
       fetchArticle();
     }
@@ -65,6 +81,15 @@ const ArticleEditor = () => {
       setCategories(response.data);
     } catch (error) {
       console.error("Failed to fetch categories:", error);
+    }
+  };
+
+  const fetchDocuments = async () => {
+    try {
+      const response = await axios.get(`${API}/documents`);
+      setDocuments(response.data.filter(d => d.status === "completed"));
+    } catch (error) {
+      console.error("Failed to fetch documents:", error);
     }
   };
 
@@ -132,6 +157,98 @@ const ArticleEditor = () => {
     }));
   };
 
+  const handlePdfUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+      toast.error("Bitte laden Sie nur PDF-Dateien hoch");
+      return;
+    }
+
+    setUploadingPdf(true);
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("target_language", "de");
+
+    try {
+      const response = await axios.post(`${API}/documents/upload`, formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      
+      toast.success("PDF wird verarbeitet...");
+      
+      // Poll for completion
+      const checkStatus = async () => {
+        const docResponse = await axios.get(`${API}/documents/${response.data.document_id}`);
+        if (docResponse.data.status === "completed") {
+          insertPdfContent(docResponse.data);
+          setUploadingPdf(false);
+        } else if (docResponse.data.status === "failed") {
+          toast.error("PDF-Verarbeitung fehlgeschlagen");
+          setUploadingPdf(false);
+        } else {
+          setTimeout(checkStatus, 2000);
+        }
+      };
+      
+      setTimeout(checkStatus, 2000);
+    } catch (error) {
+      console.error("Upload failed:", error);
+      toast.error("Upload fehlgeschlagen");
+      setUploadingPdf(false);
+    }
+    
+    event.target.value = "";
+  };
+
+  const insertPdfContent = (doc) => {
+    let htmlContent = "";
+    
+    // Add summary
+    if (doc.summary) {
+      htmlContent += `<h2>Zusammenfassung</h2><p>${doc.summary}</p>`;
+    }
+    
+    // Add bullet points
+    if (doc.structured_content?.bulletpoints?.length > 0) {
+      htmlContent += `<h2>Hauptpunkte</h2><ul>`;
+      doc.structured_content.bulletpoints.forEach(point => {
+        htmlContent += `<li>${point}</li>`;
+      });
+      htmlContent += `</ul>`;
+    }
+    
+    // Add extracted text
+    if (doc.extracted_text) {
+      htmlContent += `<h2>Inhalt</h2>`;
+      // Convert paragraphs
+      const paragraphs = doc.extracted_text.split('\n\n');
+      paragraphs.forEach(p => {
+        if (p.trim()) {
+          htmlContent += `<p>${p.trim()}</p>`;
+        }
+      });
+    }
+    
+    // Append to current content
+    setArticle(prev => ({
+      ...prev,
+      content: prev.content + htmlContent,
+      title: prev.title || doc.filename.replace(".pdf", "")
+    }));
+    
+    toast.success("PDF-Inhalt eingefügt");
+    setPdfDialog({ open: false });
+  };
+
+  const handleImportExistingPdf = async (doc) => {
+    setImportingPdf(true);
+    insertPdfContent(doc);
+    setImportingPdf(false);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -141,7 +258,7 @@ const ArticleEditor = () => {
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 animate-fadeIn" data-testid="article-editor">
+    <div className="max-w-6xl mx-auto space-y-6 animate-fadeIn" data-testid="article-editor">
       {/* Header */}
       <div className="flex items-center justify-between">
         <Button variant="ghost" onClick={() => navigate("/articles")} data-testid="back-btn">
@@ -149,6 +266,14 @@ const ArticleEditor = () => {
           Zurück
         </Button>
         <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => setPdfDialog({ open: true })}
+            data-testid="import-pdf-btn"
+          >
+            <Upload className="w-4 h-4 mr-2" />
+            PDF importieren
+          </Button>
           <Button 
             variant="outline" 
             onClick={() => handleSave()} 
@@ -183,9 +308,9 @@ const ArticleEditor = () => {
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className="grid lg:grid-cols-4 gap-6">
         {/* Main Editor */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-3 space-y-6">
           <Card>
             <CardContent className="p-6 space-y-6">
               {/* Title */}
@@ -204,28 +329,27 @@ const ArticleEditor = () => {
               {/* Summary */}
               <div className="space-y-2">
                 <Label htmlFor="summary">Zusammenfassung</Label>
-                <Textarea
+                <Input
                   id="summary"
                   value={article.summary || ""}
                   onChange={(e) => setArticle(prev => ({ ...prev, summary: e.target.value }))}
                   placeholder="Kurze Zusammenfassung des Artikels..."
-                  rows={3}
                   data-testid="article-summary-input"
                 />
               </div>
 
-              {/* Content */}
+              {/* Rich Text Editor */}
               <div className="space-y-2">
-                <Label htmlFor="content">Inhalt</Label>
-                <Textarea
-                  id="content"
-                  value={article.content}
-                  onChange={(e) => setArticle(prev => ({ ...prev, content: e.target.value }))}
-                  placeholder="Artikelinhalt eingeben... (Markdown wird unterstützt)"
-                  rows={20}
-                  className="font-mono text-sm"
-                  data-testid="article-content-input"
+                <Label>Inhalt</Label>
+                <RichTextEditor
+                  content={article.content}
+                  onChange={(html) => setArticle(prev => ({ ...prev, content: html }))}
+                  placeholder="Artikelinhalt eingeben... Nutzen Sie die Werkzeugleiste für Formatierungen, Tabellen und Bilder."
+                  data-testid="article-content-editor"
                 />
+                <p className="text-xs text-muted-foreground">
+                  Tipp: Sie können Inhalte aus anderen Quellen (Word, Web) direkt einfügen - die Formatierung wird übernommen.
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -378,6 +502,88 @@ const ArticleEditor = () => {
           </Card>
         </div>
       </div>
+
+      {/* PDF Import Dialog */}
+      <Dialog open={pdfDialog.open} onOpenChange={(open) => setPdfDialog({ open })}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>PDF importieren</DialogTitle>
+            <DialogDescription>
+              Laden Sie ein neues PDF hoch oder wählen Sie ein bereits verarbeitetes Dokument.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-6">
+            {/* Upload new PDF */}
+            <div className="border-2 border-dashed rounded-lg p-6 text-center">
+              <Upload className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+              <p className="font-medium mb-2">Neues PDF hochladen</p>
+              <p className="text-sm text-muted-foreground mb-4">
+                Das PDF wird automatisch analysiert, Bilder, Tabellen und Strukturen werden extrahiert.
+              </p>
+              <label>
+                <input
+                  type="file"
+                  accept=".pdf"
+                  onChange={handlePdfUpload}
+                  className="hidden"
+                  disabled={uploadingPdf}
+                />
+                <Button asChild disabled={uploadingPdf}>
+                  <span>
+                    {uploadingPdf ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Wird verarbeitet...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4 mr-2" />
+                        PDF auswählen
+                      </>
+                    )}
+                  </span>
+                </Button>
+              </label>
+            </div>
+
+            {/* Existing documents */}
+            {documents.length > 0 && (
+              <div className="space-y-3">
+                <Label>Oder aus verarbeiteten Dokumenten wählen:</Label>
+                <div className="max-h-60 overflow-auto space-y-2">
+                  {documents.map((doc) => (
+                    <div 
+                      key={doc.document_id}
+                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 cursor-pointer"
+                      onClick={() => handleImportExistingPdf(doc)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <FileText className="w-5 h-5 text-muted-foreground" />
+                        <div>
+                          <p className="font-medium">{doc.filename}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {doc.page_count} Seiten • {doc.original_language}
+                          </p>
+                        </div>
+                      </div>
+                      <Button variant="ghost" size="sm">
+                        Einfügen
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPdfDialog({ open: false })}>
+              Abbrechen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
