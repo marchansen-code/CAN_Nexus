@@ -131,6 +131,21 @@ const UserManagement = () => {
     }
   };
 
+  const handleDeleteUser = async () => {
+    if (!deleteDialog.user) return;
+    
+    try {
+      await axios.delete(`${API}/users/${deleteDialog.user.user_id}`);
+      toast.success("Benutzer gelöscht");
+      setUsers(users.filter(u => u.user_id !== deleteDialog.user.user_id));
+    } catch (error) {
+      console.error("Failed to delete user:", error);
+      toast.error("Benutzer konnte nicht gelöscht werden");
+    } finally {
+      setDeleteDialog({ open: false, user: null });
+    }
+  };
+
   const filteredUsers = users.filter(user => 
     user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.email?.toLowerCase().includes(searchTerm.toLowerCase())
