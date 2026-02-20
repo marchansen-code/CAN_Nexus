@@ -432,6 +432,24 @@ async def get_articles(
     articles = await db.articles.find(query, {"_id": 0}).sort("updated_at", -1).to_list(1000)
     return articles
 
+@api_router.get("/articles/top-viewed")
+async def get_top_viewed_articles(limit: int = 10, user: User = Depends(get_current_user)):
+    """Get top viewed articles system-wide"""
+    articles = await db.articles.find(
+        {},
+        {"_id": 0}
+    ).sort("view_count", -1).limit(limit).to_list(limit)
+    return articles
+
+@api_router.get("/articles/by-category/{category_id}")
+async def get_articles_by_category(category_id: str, user: User = Depends(get_current_user)):
+    """Get articles in a specific category"""
+    articles = await db.articles.find(
+        {"category_id": category_id},
+        {"_id": 0}
+    ).sort("updated_at", -1).to_list(100)
+    return articles
+
 @api_router.get("/articles/{article_id}", response_model=Dict)
 async def get_article(
     article_id: str,
