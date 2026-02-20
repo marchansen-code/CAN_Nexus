@@ -118,6 +118,17 @@ const UserManagement = () => {
     }
   };
 
+  const handleToggleBlock = async (user) => {
+    try {
+      const response = await axios.put(`${API}/users/${user.user_id}/block`);
+      toast.success(response.data.message === "User blocked" ? "Benutzer gesperrt" : "Benutzer entsperrt");
+      fetchUsers();
+    } catch (error) {
+      console.error("Failed to toggle block:", error);
+      toast.error("Aktion fehlgeschlagen");
+    }
+  };
+
   const filteredUsers = users.filter(user => 
     user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.email?.toLowerCase().includes(searchTerm.toLowerCase())
