@@ -1,79 +1,62 @@
 # CANUSA Nexus - The Knowledge Hub - PRD
 
 ## Original Problem Statement
-KI-gestützte Wissensmanagement-Plattform für CANUSA Touristik GmbH & Co. KG und CU-Travel, spezialisiert auf automatisierten Content-Import und intelligente Abfrage.
+KI-gestützte Wissensmanagement-Plattform für CANUSA Touristik GmbH & Co. KG und CU-Travel.
 
 ## Technology Stack
 - **Frontend**: React 18, TailwindCSS, Shadcn/UI, TipTap Rich Editor
 - **Backend**: FastAPI, Python 3.11
-- **Database**: MongoDB (Dokumente), Pinecone (Vektoren)
+- **Database**: MongoDB, Pinecone (Vektoren)
 - **AI**: Gemini 3 Flash (Emergent LLM Key)
-- **Auth**: Emergent-managed Google OAuth (Domain-restricted)
+- **Auth**: Emergent-managed Google OAuth
 
 ## Implemented Features
 
 ### Core Features
-- ✅ Landing Page mit Google Auth Login
-- ✅ Dashboard mit Statistiken, Neueste & Beliebteste Artikel
+- ✅ Google Auth mit Domain-Beschränkung (@canusa.de, @cu-travel.com)
+- ✅ Dashboard mit Statistiken, Favoriten, Beliebteste Artikel
 - ✅ KI-Suche mit Keyword + Semantischer Suche
 - ✅ Artikel-CRUD mit Status-Workflow
-- ✅ PDF-Upload und Verarbeitung
 - ✅ Kategorieverwaltung (Baumstruktur)
+- ✅ Dark/Light/Auto Theme-Mode
 
-### Phase 6 - Advanced Features
-- ✅ **Dark/Light/Auto Theme-Mode** (Dropdown im Header)
-- ✅ **Admin: Dokumente löschen**
-- ✅ **Wissensartikel Split-Layout** (Kategorien links, Artikel rechts)
-- ✅ **Top 10 Artikel** (kompakt, horizontaler Scroll)
-- ✅ **Admin: User sperren UND löschen**
-- ✅ **PDF-Einbettung** als iFrame + Neuer Tab Option
-- ✅ **Autor unter Artikeln** anzeigen
-- ✅ **Ansprechpartner-Feld** im Editor
+### Admin Features
+- ✅ User sperren und löschen
+- ✅ Dokumente löschen
+- ✅ Rollenverwaltung (Admin/Editor/Viewer)
+
+### PDF Features
+- ✅ PDF-Upload mit Duplikat-Prüfung
+- ✅ PDF-Einbettung als iFrame (öffentlicher Endpoint)
+- ✅ PDF in neuem Tab öffnen
+- ✅ Text-Extraktion mit Layout-Erhaltung
+
+### Verbesserungen (Iteration 7)
+- ✅ PDF-Duplikat-Prüfung (409 Error mit force=true Override)
+- ✅ PDF-Einbettung funktioniert (Content-Disposition: inline)
+- ✅ Dashboard: 15 "Zuletzt angesehen" mit Scroll (5 sichtbar)
+- ✅ KI-Suche präziser (Keyword-Filtering, Relevanz-Badges)
 
 ## API Endpoints
 
-### Auth
-- `POST /api/auth/session` - Session erstellen
-- `GET /api/auth/me` - Aktueller Benutzer
-- `POST /api/auth/logout` - Abmelden
-
-### Users
-- `GET /api/users` - Alle Benutzer
-- `PUT /api/users/{id}/role` - Rolle ändern
-- `PUT /api/users/{id}/block` - User sperren/entsperren
-- `DELETE /api/users/{id}` - User löschen (Admin only)
-
-### Articles
-- `GET /api/articles` - Alle Artikel
-- `GET /api/articles/top-viewed` - Top N nach Views
-- `GET /api/articles/by-category/{id}` - Nach Kategorie
-- `POST /api/articles` - Erstellen
-- `GET /api/articles/{id}` - Einzelner Artikel
-- `PUT /api/articles/{id}` - Aktualisieren
-- `DELETE /api/articles/{id}` - Löschen
-- `POST /api/articles/{id}/favorite` - Favorit togglen
-- `POST /api/articles/{id}/viewed` - Als angesehen markieren
-- `POST /api/articles/generate-summary` - KI-Zusammenfassung
-
-### Documents
-- `POST /api/documents/upload` - PDF hochladen
-- `GET /api/documents` - Alle Dokumente
-- `GET /api/documents/{id}` - Dokumentdetails
-- `GET /api/documents/{id}/pdf` - PDF-Datei streamen
+### Documents (neu/aktualisiert)
+- `POST /api/documents/upload` - Upload (409 bei Duplikat, ?force=true zum Überschreiben)
+- `GET /api/documents/{id}/pdf` - PDF für Auth-User
+- `GET /api/documents/{id}/pdf-embed` - PDF für iFrame (public, inline)
 - `DELETE /api/documents/{id}` - Löschen (Admin only)
 
-### Categories
-- `GET /api/categories` - Alle Kategorien
-- `POST /api/categories` - Erstellen
+### Users
+- `DELETE /api/users/{id}` - User löschen (Admin only)
+- `PUT /api/users/{id}/block` - User sperren/entsperren
 
 ### Search
-- `POST /api/search` - Semantische + Keyword Suche
+- `POST /api/search` - Suche mit Keyword-Filtering und Snippet-Highlighting
 
 ### Stats
-- `GET /api/stats` - Dashboard-Statistiken
+- `GET /api/stats` - Enthält 15 recently_viewed Artikel
 
 ## Test Coverage
-- Backend: 100% (13/13 Tests)
+- Backend: 100% (15/15 Tests)
 - Frontend: 100%
 - Last tested: 20.02.2026
 
@@ -86,9 +69,8 @@ KI-gestützte Wissensmanagement-Plattform für CANUSA Touristik GmbH & Co. KG un
 ### P2 (Medium)
 - [ ] Artikel-Versionierung
 - [ ] Export zu Word/PDF
-- [ ] WebSocket für Echtzeit-Präsenz
+- [ ] Schnellsuche (Strg+K)
 
 ### P3 (Nice to Have)
 - [ ] Mehrsprachige UI
 - [ ] Analytics Dashboard
-- [ ] Schnellsuche (Strg+K)
