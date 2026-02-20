@@ -130,11 +130,11 @@ const ArticleEditor = () => {
 
   // Presence heartbeat
   useEffect(() => {
-    if (isNew || !id) return;
+    if (isNew || !articleId) return;
 
     const updatePresence = async () => {
       try {
-        const response = await axios.post(`${API}/articles/${id}/presence`);
+        const response = await axios.post(`${API}/articles/${articleId}/presence`);
         setActiveEditors(response.data.active_editors || []);
       } catch (error) {
         console.error("Presence update failed:", error);
@@ -150,17 +150,16 @@ const ArticleEditor = () => {
     // Cleanup on unmount
     return () => {
       clearInterval(interval);
-      axios.delete(`${API}/articles/${id}/presence`).catch(() => {});
+      axios.delete(`${API}/articles/${articleId}/presence`).catch(() => {});
     };
-  }, [id, isNew]);
+  }, [articleId, isNew]);
 
   useEffect(() => {
     fetchCategories();
-    fetchDocuments();
-    if (!isNew) {
+    if (!isNew && articleId) {
       fetchArticle();
     }
-  }, [id]);
+  }, [articleId]);
 
   const fetchCategories = async () => {
     try {
@@ -169,10 +168,7 @@ const ArticleEditor = () => {
     } catch (error) {
       console.error("Failed to fetch categories:", error);
     }
-  };
-
-  const fetchDocuments = async () => {
-    try {
+  }; {
       const response = await axios.get(`${API}/documents`);
       setDocuments(response.data.filter(d => d.status === "completed"));
     } catch (error) {
