@@ -285,6 +285,54 @@ async def logout(request: Request, response: Response):
     response.delete_cookie(key="session_token", path="/")
     return {"message": "Logged out successfully"}
 
+# ==================== USER MANAGEMENT ENDPOINTS ====================
+
+class RoleUpdate(BaseModel):
+    role: str
+
+@api_router.get("/users", response_model=List[Dict])
+async def get_users(user: User = Depends(get_current_user)):
+    """Get all users"""
+    users = await db.users.find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    return users
+
+@api_router.get("/users/{user_id}", response_model=Dict)
+async def get_user(user_id: str, current_user: User = Depends(get_current_user)):
+    """Get a specific user"""
+    user = await db.users.find_one({"user_id": user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+@api_router.put("/users/{user_id}/role")
+async def update_user_role(
+    user_id: str,
+    role_update: RoleUpdate,
+    current_user: User = Depends(get_current_user)
+):
+    """Update a user's role (admin only)"""
+    # Check if current user is admin
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can change user roles")
+    
+    # Validate role
+    if role_update.role not in ["admin", "editor", "viewer"]:
+        raise HTTPException(status_code=400, detail="Invalid role. Must be admin, editor, or viewer")
+    
+    # Prevent self-demotion
+    if user_id == current_user.user_id:
+        raise HTTPException(status_code=400, detail="Cannot change your own role")
+    
+    result = await db.users.update_one(
+        {"user_id": user_id},
+        {"$set": {"role": role_update.role, "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return {"message": f"User role updated to {role_update.role}"}
+
 # ==================== CATEGORY ENDPOINTS ====================
 
 @api_router.get("/categories", response_model=List[Dict])
