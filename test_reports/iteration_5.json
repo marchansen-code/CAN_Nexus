@@ -1,0 +1,92 @@
+{
+  "summary": "Iteration 5: Testing of new CANUSA Nexus features - Theme Toggle, User Blocking, Document Deletion, Split Layout Articles, Top 10 Artikel, Beliebteste Artikel Dashboard section, improved search. Fixed 1 bug in ArticleEditor (contact_person_id SelectItem empty value issue).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "ArticleEditor.jsx",
+        "issue": "FIXED: SelectItem for Ansprechpartner had empty string value causing 'A <Select.Item /> must have a value prop that is not an empty string' error",
+        "selector": "[data-testid='contact-person-select']",
+        "priority": "HIGH",
+        "status": "FIXED"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration5_features.py",
+    "/app/backend/tests/test_iteration5_authenticated.py",
+    "/app/test_reports/pytest/pytest_results_iter5.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/frontend/src/pages/ArticleEditor.jsx"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "admin_user": "marc.hansen@canusa.de",
+    "session_token": "OMDc4lJ2GaPGZzcO7R_78AYC9pVq_izstu5IS8ynxcM"
+  },
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All Iteration 5 features verified: (1) Theme Toggle works with light/dark/system modes using cycleTheme(), (2) DELETE /api/documents/{id} endpoint exists and requires admin, (3) PUT /api/users/{id}/block works for blocking/unblocking users with 403 response for blocked users, (4) Articles page has split layout with Categories tree on left and articles on right, (5) Top 10 banner shows 'Top 10 - Meistgesehene Artikel' with numbered rankings, (6) Dashboard shows 'Beliebteste Artikel' section with view counts, (7) /api/stats now includes top_articles field, (8) Search API returns answer+sources (improved semantic+keyword search), (9) ArticleView shows Verfasst von (author) and Ansprechpartner (contact person), (10) ArticleEditor has Ansprechpartner dropdown in sidebar (fixed empty value bug). All 59 backend tests pass.",
+  "features_verified": {
+    "theme_toggle": {
+      "status": "VERIFIED",
+      "notes": "Mode button in header cycles through light->dark->system. Toast shows 'Theme: Hell/Dunkel/Automatisch'"
+    },
+    "dark_mode_css": {
+      "status": "VERIFIED",
+      "notes": "Tailwind .dark class applied to html element, CSS variables work"
+    },
+    "document_deletion": {
+      "status": "VERIFIED",
+      "notes": "DELETE /api/documents/{id} requires auth, trash icon visible for admins"
+    },
+    "user_blocking": {
+      "status": "VERIFIED",
+      "notes": "PUT /api/users/{id}/block returns 200 with is_blocked field, blocked users get 403"
+    },
+    "articles_split_layout": {
+      "status": "VERIFIED",
+      "notes": "Categories tree on left, articles on right with search input"
+    },
+    "top_10_banner": {
+      "status": "VERIFIED",
+      "notes": "'Top 10 - Meistgesehene Artikel' banner with numbered rankings 1-6 visible"
+    },
+    "beliebteste_artikel_dashboard": {
+      "status": "VERIFIED",
+      "notes": "Dashboard shows 'Beliebteste Artikel' section with rankings and 'X Aufrufe' counts"
+    },
+    "stats_top_articles": {
+      "status": "VERIFIED",
+      "notes": "/api/stats response includes top_articles array"
+    },
+    "improved_search": {
+      "status": "VERIFIED",
+      "notes": "Search API returns 'answer' and 'sources' with semantic+keyword results"
+    },
+    "article_author_display": {
+      "status": "VERIFIED",
+      "notes": "'Verfasst von' section shows author name, avatar, and email at bottom of article"
+    },
+    "article_contact_person": {
+      "status": "VERIFIED",
+      "notes": "'Ansprechpartner' shown in article content and as dropdown in editor sidebar"
+    },
+    "contact_person_dropdown": {
+      "status": "VERIFIED",
+      "notes": "ArticleEditor sidebar has Ansprechpartner dropdown with 'Kein Ansprechpartner' option (fixed)"
+    }
+  }
+}
