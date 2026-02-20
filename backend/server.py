@@ -638,14 +638,21 @@ async def upload_document(
     if not file.filename.lower().endswith('.pdf'):
         raise HTTPException(status_code=400, detail="Only PDF files are allowed")
     
-    # Save file temporarily
+    # Save file permanently for embedding
     content = await file.read()
-    temp_path = f"/tmp/{uuid.uuid4().hex}.pdf"
-    with open(temp_path, "wb") as f:
+    doc_id = f"doc_{uuid.uuid4().hex[:12]}"
+    permanent_path = f"/tmp/pdfs/{doc_id}.pdf"
+    
+    # Create directory if needed
+    import os
+    os.makedirs("/tmp/pdfs", exist_ok=True)
+    
+    with open(permanent_path, "wb") as f:
         f.write(content)
     
     # Create document record
     doc = Document(
+        document_id=doc_id,
         filename=file.filename,
         target_language=target_language,
         status="pending",
@@ -653,15 +660,16 @@ async def upload_document(
     )
     doc_dict = doc.model_dump()
     doc_dict["created_at"] = doc_dict["created_at"].isoformat()
-    doc_dict["temp_path"] = temp_path
+    doc_dict["file_path"] = permanent_path  # Keep for embedding
+    doc_dict["file_size"] = len(content)
     
     await db.documents.insert_one(doc_dict)
     
     # Start async processing
-    asyncio.create_task(process_document(doc.document_id, temp_path, target_language))
+    asyncio.create_task(process_document(doc_id, permanent_path, target_language))
     
     return {
-        "document_id": doc.document_id,
+        "document_id": doc_id,
         "filename": doc.filename,
         "status": "pending",
         "message": "Document uploaded and processing started"
