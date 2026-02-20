@@ -96,9 +96,11 @@ class Article(BaseModel):
     summary: Optional[str] = None
     category_id: Optional[str] = None
     status: str = "draft"  # draft, review, published
+    visibility: str = "all"  # all, editors, admins
     tags: List[str] = []
     source_document_id: Optional[str] = None
     review_date: Optional[datetime] = None
+    favorited_by: List[str] = []
     created_by: str
     updated_by: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -110,6 +112,7 @@ class ArticleCreate(BaseModel):
     summary: Optional[str] = None
     category_id: Optional[str] = None
     status: str = "draft"
+    visibility: str = "all"
     tags: List[str] = []
 
 class ArticleUpdate(BaseModel):
@@ -118,6 +121,7 @@ class ArticleUpdate(BaseModel):
     summary: Optional[str] = None
     category_id: Optional[str] = None
     status: Optional[str] = None
+    visibility: Optional[str] = None
     tags: Optional[List[str]] = None
     review_date: Optional[datetime] = None
 
