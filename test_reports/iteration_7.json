@@ -1,0 +1,79 @@
+{
+  "summary": "Iteration 7: All 4 bugfixes verified - (1) PDF duplicate check returns 409, force=true overwrites, (2) pdf-embed endpoint returns inline Content-Disposition for iFrame embedding, (3) Stats returns 15 recently_viewed articles with scrollable Dashboard UI, (4) Search uses keyword filtering with color-coded relevance badges",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration7_bugfixes.py",
+    "/app/test_reports/pytest/pytest_results_iter7.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_iteration7_bugfixes.py"
+  ],
+  "success_rate": {
+    "backend": "100% (15/15 pytest tests passed)",
+    "frontend": "100% (all features verified via Playwright)"
+  },
+  "test_credentials": {
+    "note": "Created temporary admin user test.iter7@canusa.de for testing, cleaned up after tests"
+  },
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All 4 iteration 7 bugfixes verified working correctly. Backend API tests and frontend Playwright tests all passing.",
+  "features_verified": {
+    "pdf_upload_duplicate_409": {
+      "status": "VERIFIED",
+      "notes": "POST /api/documents/upload returns 409 with German message when duplicate filename exists"
+    },
+    "pdf_upload_force_overwrite": {
+      "status": "VERIFIED", 
+      "notes": "POST /api/documents/upload?force=true successfully overwrites existing document"
+    },
+    "pdf_embed_inline_header": {
+      "status": "VERIFIED",
+      "notes": "GET /api/documents/{id}/pdf-embed returns Content-Disposition: inline for iFrame embedding"
+    },
+    "pdf_embed_public_endpoint": {
+      "status": "VERIFIED",
+      "notes": "pdf-embed endpoint is public (no auth required) for iFrame compatibility"
+    },
+    "stats_15_recently_viewed": {
+      "status": "VERIFIED",
+      "notes": "GET /api/stats retrieves up to 15 recently_viewed articles ([:15] in server.py line 1184)"
+    },
+    "dashboard_scrollable_recently_viewed": {
+      "status": "VERIFIED",
+      "notes": "Dashboard.jsx has max-h-[280px] overflow-y-auto for scrollable recently viewed section"
+    },
+    "search_keyword_filtering": {
+      "status": "VERIFIED",
+      "notes": "Search endpoint uses key_terms extraction and title_matches/content_matches for filtering"
+    },
+    "search_relevance_badges": {
+      "status": "VERIFIED",
+      "notes": "Search.jsx shows color-coded badges (emerald >=80%, amber >=60%, slate <60%) with '% Relevanz'"
+    }
+  },
+  "api_tests_performed": {
+    "pdf_embed_404": "GET /api/documents/nonexistent/pdf-embed returns 404 (not 401)",
+    "pdf_embed_inline": "GET /api/documents/{id}/pdf-embed returns Content-Disposition: inline",
+    "upload_duplicate_409": "POST /api/documents/upload with existing filename returns 409",
+    "upload_force_true": "POST /api/documents/upload?force=true overwrites successfully",
+    "stats_auth_required": "GET /api/stats requires authentication",
+    "search_auth_required": "POST /api/search requires authentication"
+  },
+  "ui_tests_performed": {
+    "dashboard": "Dashboard loads with 'Zuletzt angesehen' section showing article count",
+    "search_page": "Search returns AI answer with relevance badges (90% Relevanz shown in green)",
+    "article_editor": "Article editor with PDF import dialog functioning correctly"
+  }
+}
