@@ -830,7 +830,7 @@ async def delete_document(document_id: str, user: User = Depends(get_current_use
             import os
             if os.path.exists(file_path):
                 os.remove(file_path)
-        except:
+        except Exception:
             pass
     
     await db.documents.delete_one({"document_id": document_id})
