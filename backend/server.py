@@ -1052,7 +1052,7 @@ async def get_favorites(user: User = Depends(get_current_user)):
 
 @api_router.post("/articles/{article_id}/viewed")
 async def mark_as_viewed(article_id: str, user: User = Depends(get_current_user)):
-    """Mark article as viewed and update recently viewed list"""
+    """Mark article as viewed and update recently viewed list + view count"""
     # Remove if already in list, then add to front
     await db.users.update_one(
         {"user_id": user.user_id},
@@ -1062,7 +1062,30 @@ async def mark_as_viewed(article_id: str, user: User = Depends(get_current_user)
         {"user_id": user.user_id},
         {"$push": {"recently_viewed": {"$each": [article_id], "$position": 0, "$slice": 20}}}
     )
+    # Increment view count on article
+    await db.articles.update_one(
+        {"article_id": article_id},
+        {"$inc": {"view_count": 1}}
+    )
     return {"message": "Marked as viewed"}
+
+@api_router.get("/articles/top-viewed")
+async def get_top_viewed_articles(limit: int = 10, user: User = Depends(get_current_user)):
+    """Get top viewed articles system-wide"""
+    articles = await db.articles.find(
+        {},
+        {"_id": 0}
+    ).sort("view_count", -1).limit(limit).to_list(limit)
+    return articles
+
+@api_router.get("/articles/by-category/{category_id}")
+async def get_articles_by_category(category_id: str, user: User = Depends(get_current_user)):
+    """Get articles in a specific category"""
+    articles = await db.articles.find(
+        {"category_id": category_id},
+        {"_id": 0}
+    ).sort("updated_at", -1).to_list(100)
+    return articles
 
 # ==================== PRESENCE / ACTIVE EDITORS ====================
 
