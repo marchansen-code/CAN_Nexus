@@ -1,4 +1,4 @@
-# CANUSA Knowledge Hub - PRD
+# CANUSA Nexus - The Knowledge Hub - PRD
 
 ## Original Problem Statement
 KI-gestützte Wissensmanagement-Plattform für CANUSA Touristik GmbH & Co. KG und CU-Travel, spezialisiert auf automatisierten Content-Import und intelligente Abfrage.
@@ -53,18 +53,30 @@ KI-gestützte Wissensmanagement-Plattform für CANUSA Touristik GmbH & Co. KG un
 - ✅ Favoriten-System
 - ✅ Dashboard: Favoriten und zuletzt angesehene Artikel
 - ✅ Benutzerstatistik (eigene Artikel/Dokumente)
-- ✅ Marc Hansen als Administrator gesetzt
 
 ### Phase 4 - UI/UX Refinements (20.02.2026)
 - ✅ Rollenbasierte Sidebar-Navigation
-  - Admin: Alle 7 Menüpunkte
-  - Editor: 5 Menüpunkte (ohne Benutzer/Einstellungen)
-  - Viewer: 3 Menüpunkte (Dashboard, KI-Suche, Artikel)
-- ✅ Separate Read-Only Artikelansicht (/articles/:id)
+- ✅ Separate Read-Only Artikelansicht
 - ✅ Edit-Button nur für Editor/Admin sichtbar
 - ✅ Neue Benutzer bekommen automatisch "Viewer" Rolle
-- ✅ Automatische Zusammenfassungserstellung via KI im Editor
-- ✅ PDF-Import-Dialog bereinigt (ohne "Aus verarbeiteten Dokumenten" Option)
+- ✅ Automatische Zusammenfassungserstellung via KI
+
+### Phase 5 - CANUSA Nexus Rebranding (20.02.2026)
+- ✅ Umbenennung zu "CANUSA Nexus - The Knowledge Hub"
+- ✅ Vollwertiger WYSIWYG-Editor mit:
+  - Textfarben (10 Farben inkl. CANUSA Rot)
+  - Hervorhebungen (5 Farben)
+  - YouTube-Video-Einbettung
+  - Erweiterte Tabellenfunktionen
+  - Hoch-/Tiefstellung
+  - Horizontale Linien
+  - Code-Blöcke und Zitate
+- ✅ Full-Width Artikelansicht (nicht boxed)
+- ✅ Top 10 Artikel-Sidebar (systemweit, nach Views sortiert)
+- ✅ Kategorien-Baum mit Unterartikeln in Sidebar
+- ✅ View-Count-Tracking für Artikel
+- ✅ PDF-Import mit Vorschau-Dialog
+- ✅ Separate Zusammenfassungs-Übernahme aus PDFs
 
 ## Prioritized Backlog
 
@@ -76,18 +88,18 @@ KI-gestützte Wissensmanagement-Plattform für CANUSA Touristik GmbH & Co. KG un
 - [x] Favorites and Recently Viewed
 - [x] Role-based sidebar navigation
 - [x] Read-only article view with edit permissions
+- [x] Full WYSIWYG Editor
+- [x] Top 10 Articles and Category Browser
 
-### P1 (High) - PDF Import Overhaul
+### P1 (High) - PDF Import Enhancement
 - [ ] Bild-Extraktion aus PDFs (Base64 Upload)
 - [ ] OCR für gescannte PDFs
 - [ ] Perfekte Tabellen-Erhaltung mit Styling
-- [ ] Layout-Beibehaltung aus Originalformat
 
 ### P2 (Medium)
 - [ ] Versionierung von Artikeln
 - [ ] Kommentar-System für Reviews
 - [ ] Export zu Word/PDF
-- [ ] Bulk-Import mehrerer PDFs
 - [ ] WebSocket für Echtzeit-Präsenz (statt Polling)
 
 ### P3 (Nice to Have)
@@ -109,12 +121,14 @@ KI-gestützte Wissensmanagement-Plattform für CANUSA Touristik GmbH & Co. KG un
 
 ### Articles
 - `GET /api/articles` - Alle Artikel
+- `GET /api/articles/top-viewed?limit=N` - Top N Artikel nach Views
+- `GET /api/articles/by-category/{id}` - Artikel nach Kategorie
 - `POST /api/articles` - Artikel erstellen
 - `GET /api/articles/{id}` - Einzelner Artikel
-- `PUT /api/articles/{id}` - Artikel aktualisieren (inkl. visibility)
+- `PUT /api/articles/{id}` - Artikel aktualisieren
 - `DELETE /api/articles/{id}` - Artikel löschen
 - `POST /api/articles/{id}/favorite` - Favorit togglen
-- `POST /api/articles/{id}/viewed` - Als angesehen markieren
+- `POST /api/articles/{id}/viewed` - Als angesehen markieren (inkrementiert view_count)
 - `POST /api/articles/{id}/presence` - Präsenz aktualisieren
 - `POST /api/articles/generate-summary` - KI-Zusammenfassung erstellen
 
@@ -130,9 +144,6 @@ KI-gestützte Wissensmanagement-Plattform für CANUSA Touristik GmbH & Co. KG un
 ### Search
 - `POST /api/search` - Semantische Suche mit KI-Antwort
 
-### Favorites
-- `GET /api/favorites` - Benutzer-Favoriten
-
 ### Stats
 - `GET /api/stats` - Dashboard-Statistiken
 
@@ -140,6 +151,14 @@ KI-gestützte Wissensmanagement-Plattform für CANUSA Touristik GmbH & Co. KG un
 - Marc Hansen (marc.hansen@canusa.de) - Administrator
 
 ## Test Coverage
-- Backend: 100% (24/24 Tests)
+- Backend: 100% (10/10 Tests in Iteration 4)
 - Frontend: 100% (alle UI-Tests bestanden)
 - Last tested: 20.02.2026
+
+## Key UI Components
+- **Landing Page**: CANUSA Nexus branding mit Company-Info
+- **Dashboard**: Statistiken, Favoriten, Zuletzt angesehen
+- **Artikel-Liste**: Filter nach Status und Kategorie
+- **Artikel-Ansicht**: Full-Width mit Top 10 und Kategorien-Sidebar
+- **Artikel-Editor**: Vollwertiger WYSIWYG mit PDF-Import
+- **KI-Suche**: RAG-basierte Suche mit Quellenangaben
