@@ -168,17 +168,11 @@ const ArticleEditor = () => {
     } catch (error) {
       console.error("Failed to fetch categories:", error);
     }
-  }; {
-      const response = await axios.get(`${API}/documents`);
-      setDocuments(response.data.filter(d => d.status === "completed"));
-    } catch (error) {
-      console.error("Failed to fetch documents:", error);
-    }
   };
 
   const fetchArticle = async () => {
     try {
-      const response = await axios.get(`${API}/articles/${id}`);
+      const response = await axios.get(`${API}/articles/${articleId}`);
       setArticle({
         ...response.data,
         review_date: response.data.review_date ? new Date(response.data.review_date) : null
@@ -186,13 +180,38 @@ const ArticleEditor = () => {
       setIsFavorite(response.data.favorited_by?.includes(user?.user_id));
       
       // Mark as viewed
-      axios.post(`${API}/articles/${id}/viewed`).catch(() => {});
+      axios.post(`${API}/articles/${articleId}/viewed`).catch(() => {});
     } catch (error) {
       console.error("Failed to fetch article:", error);
       toast.error("Artikel konnte nicht geladen werden");
       navigate("/articles");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGenerateSummary = async () => {
+    if (!article.content || article.content.length < 50) {
+      toast.error("Bitte fügen Sie zuerst mehr Inhalt hinzu");
+      return;
+    }
+
+    setGeneratingSummary(true);
+    try {
+      const response = await axios.post(`${API}/articles/generate-summary`, {
+        content: article.content
+      });
+      if (response.data.summary) {
+        setArticle(prev => ({ ...prev, summary: response.data.summary }));
+        toast.success("Zusammenfassung erstellt");
+      } else {
+        toast.error("Zusammenfassung konnte nicht erstellt werden");
+      }
+    } catch (error) {
+      console.error("Failed to generate summary:", error);
+      toast.error("Fehler bei der Zusammenfassungserstellung");
+    } finally {
+      setGeneratingSummary(false);
     }
   };
 
@@ -215,7 +234,7 @@ const ArticleEditor = () => {
         toast.success("Artikel erstellt");
         navigate(`/articles/${response.data.article_id}`);
       } else {
-        await axios.put(`${API}/articles/${id}`, payload);
+        await axios.put(`${API}/articles/${articleId}`, payload);
         toast.success("Artikel gespeichert");
         setArticle(prev => ({ ...prev, status: newStatus || prev.status }));
       }
