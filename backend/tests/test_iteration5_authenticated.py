@@ -133,7 +133,7 @@ class TestSearchEndpoint:
         return {"Authorization": f"Bearer {AUTH_TOKEN}"}
     
     def test_search_api(self, auth_headers):
-        """Test search API with a query"""
+        """Test search API with a query - improved search returns answer + sources"""
         search_payload = {
             "query": "Familie Aktivitäten",
             "top_k": 5
@@ -145,8 +145,9 @@ class TestSearchEndpoint:
         )
         assert response.status_code == 200
         data = response.json()
-        assert "results" in data or isinstance(data, list) or "articles" in data
-        print(f"SUCCESS: Search API returned results")
+        # Improved search returns 'answer' and 'sources' fields
+        assert "answer" in data or "sources" in data, f"Search should return answer/sources: {list(data.keys())}"
+        print(f"SUCCESS: Search API returned {len(data.get('sources', []))} sources")
 
 class TestWidgetAPIs:
     """Test public widget APIs"""
