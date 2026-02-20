@@ -1,0 +1,219 @@
+<analysis>**original_problem_statement:**
+Initial Request:
+Erstelle eine KI-gestützte Wissensmanagement-Plattform nach dem Vorbild von Serviceware Knowledge/SABIO, spezialisiert auf automatisierten Content-Import und intelligente Abfrage.
+
+Core Modules:
+1.  **Automated PDF Ingestion**: Parse PDFs, summarize with an LLM, convert to structured articles.
+2.  **AI-Search & Retrieval (RAG)**: Semantic search using a vector database.
+3.  **Smart Tree & Governance**: Hierarchical tree structure and editorial workflow.
+4.  **Multichannel & Widget-API**: Provide knowledge via an embeddable widget and a REST API.
+
+Subsequent High-Level Feature Requests:
+- **Branding**: Rebrand the application to CANUSA Nexus - The Knowledge Hub with the company's color scheme.
+- **User Management**: Implement multi-role system (Admin, Editor, Viewer). Admins can suspend and delete users. New users default to Viewer.
+- **Editor**: Enhance the editor to be a full WYSIWYG experience, including image and YouTube embedding. Add a contact person field.
+- **Article & Document Management**:
+    - Create a separate read-only view for articles.
+    - Implement a new Wissensartikel page with a split view (category tree on the left, articles on the right).
+    - Show author and contact person on articles.
+    - Admins can delete uploaded documents.
+    - Check for duplicate PDF uploads.
+    - Embed PDFs directly into articles instead of just extracting text, with an option to open in a new tab.
+- **Dashboard**: Display lists for Neueste Artikel, Beliebteste Artikel (Most Popular), and an expanded Zuletzt angesehen (Recently Viewed) section.
+- **UI/UX**: Implement a Dark/Light/Auto theme mode selector. Add a Keep me logged in option.
+- **AI-Search**: Improve the precision of search results to avoid irrelevant articles and provide deep links to specific sections.
+
+**User's preferred language**: Deutsch (German)
+
+**what currently exists?**
+A feature-rich, full-stack knowledge management platform named CANUSA Nexus. It uses a React frontend and a FastAPI backend with MongoDB.
+- **Authentication**: Emergent-managed Google Auth restricted to  and  domains.
+- **User Roles (RBAC)**: Administrator, Editor, and Viewer roles with distinct permissions. Admins can manage users (suspend, delete).
+- **Core Features**:
+    - A WYSIWYG editor (TipTap) for article creation.
+    - A dedicated, full-width Wissensartikel page with a category tree and article browser.
+    - AI-powered search (RAG) with snippet highlighting and deep links.
+    - PDF import with duplicate checking and in-article embedding.
+    - A dashboard showing newest, most popular, and recently viewed articles.
+    - A theme switcher for Dark, Light, and System modes.
+    - User and document management for admins.
+
+**Last working item**:
+- **Last item agent was working**: Implementing two user requests: fixing the broken image upload in the article editor and adding a Keep me logged in option. The agent correctly identified that the image upload failed because the  component was missing the  function prop. It began the fix by planning to add the required backend endpoint for handling image uploads.
+- **Status**: IN PROGRESS
+- **Agent Testing Done**: N
+- **Which testing method agent to use?**: both
+- **User Testing Done**: N
+
+**All Pending/In progress Issue list**:
+- **Issue 1 (P0)**: Image upload in the article editor is not functional.
+  - **Issue Detail**:
+    - **Attempted fixes**: The agent investigated and found the root cause: the  prop is not passed to the  component from , and the corresponding backend endpoint to handle the upload does not exist.
+    - **Next debug checklist**:
+        1.  Add a new endpoint in  (e.g., ) to handle multipart/form-data image uploads and return the URL of the saved image.
+        2.  In , implement the  function. This function will call the new backend endpoint.
+        3.  Pass this  function as the  prop to the  component.
+        4.  Test the image upload functionality thoroughly from the editor UI.
+    - **Why fix this issue and what will be achieved with the fix?**: This will complete a core functionality of a WYSIWYG editor, allowing users to enrich articles with images.
+    - **Status**: IN PROGRESS
+    - **Is recurring issue?**: N
+    - **Should Test frontend/backend/both after fix?**: both
+    - **Blocked on other issue**: None
+
+**In progress Task List**:
+- **Task 1 (P1)**: Add a Keep me logged in feature.
+    - **Where to resume**: This task has not been started. The implementation will likely involve using  or a more persistent cookie to store the JWT token instead of .
+    - **What will be achieved with this?**: Improves user experience by preventing frequent logouts.
+    - **Status**: NOT STARTED
+    - **Should Test frontend/backend/both after fix?**: frontend
+    - **Blocked on something**: Blocked on completing the P0 image upload fix.
+
+**Upcoming and Future Tasks**
+- **Upcoming Tasks**:
+    - **P1**: Refine AI Search Precision: The user has repeatedly noted that the search results are not accurate enough. The current hybrid approach (Pinecone + MongoDB) needs further tuning. Consider implementing re-ranking or adjusting the weights between semantic and keyword search.
+    - **P2**: Implement Hierarchical Category Management: The UI for adding/editing/deleting categories in the tree structure on the Wissensartikel page is not yet built. This requires both frontend components and backend endpoints.
+
+- **Future Tasks**:
+    - **P1**: High-Fidelity PDF Import: The user's original request for perfect layout preservation (tables, complex formatting) from PDFs is still not fully met. The current embedding is a good step, but a more advanced parsing solution ( was previously considered) could be explored to convert PDF content directly into editable HTML within the TipTap editor, which was the original intent.
+
+**Completed work in this session**
+- **Feature Verification**: Confirmed that role-based sidebars, read-only article views, and default viewer roles work as expected.
+- **Application Renaming**: Renamed the app to CANUSA Nexus - The Knowledge Hub.
+- **Layout & UX**:
+    - Implemented a full-width article view.
+    - Created a new Wissensartikel page with a split-view (category tree/article list).
+    - Added Beliebteste Artikel to the dashboard and expanded Zuletzt angesehen.
+    - Fixed a horizontal overflow bug on the Wissensartikel page.
+- **Theme**: Implemented and then refined a Dark/Light/Auto mode theme selector (changed from a button to a dropdown).
+- **User Management**: Added functionality for Admins to **suspend** and **delete** users.
+- **PDF Handling**:
+    - Implemented PDF embedding (via ) in articles, fixing an issue where files would auto-download.
+    - Added a check to prevent duplicate PDF uploads.
+- **AI Search**: Improved search results to include snippets and deep links to article sections.
+- **Editor**: Added a contact person selector to the editor sidebar.
+
+**Earlier issues found/mentioned but not fixed**
+- **Issue 1**: AI Search Precision. This is a recurring request from the user. While improvements (hybrid search, snippets) have been made, the user still finds the results imprecise (e.g., searching for Westkanada returns results for Maui).
+    - **Debug checklist**:
+        1.  Analyze the embedding generation process. Are the chunks too large or too small?
+        2.  Experiment with different LLMs or prompts for the RAG AI-Antwort generation to make it stricter.
+        3.  Implement a re-ranking step where initial results are re-ordered by a more powerful model or a different logic.
+        4.  Review the  function in  to adjust the weighting between vector search and text search.
+    - **Why to solve this issue and what will be achieved with this?**: This is a core function of the knowledge base. A precise search is critical for user trust and platform utility.
+    - **Should Test frontend/backend/both after fix**: backend
+    - **Is recurring issue?**: Y
+
+**Known issue recurrence from previous fork**
+- None.
+
+**Code Architecture**
+
+
+**Key Technical Concepts**
+- **Backend**: FastAPI, Python, MongoDB (motor), Pinecone (Vector DB), usage: pdfplumber [-h] [--structure | --structure-text]
+                  [--format {csv,json,text}] [--types TYPES [TYPES ...]]
+                  [--include-attrs INCLUDE_ATTRS [INCLUDE_ATTRS ...]]
+                  [--exclude-attrs EXCLUDE_ATTRS [EXCLUDE_ATTRS ...]]
+                  [--laparams LAPARAMS] [--precision PRECISION]
+                  [--pages PAGES [PAGES ...]] [--indent INDENT]
+                  [infile]
+
+positional arguments:
+  infile
+
+options:
+  -h, --help            show this help message and exit
+  --structure           Write the structure tree as JSON. All other arguments
+                        except --pages, --laparams, and --indent will be
+                        ignored
+  --structure-text      Write the structure tree as JSON including text
+                        contents. All other arguments except --pages,
+                        --laparams, and --indent will be ignored
+  --format {csv,json,text}
+  --types TYPES [TYPES ...]
+  --include-attrs INCLUDE_ATTRS [INCLUDE_ATTRS ...]
+                        Include *only* these object attributes in output.
+  --exclude-attrs EXCLUDE_ATTRS [EXCLUDE_ATTRS ...]
+                        Exclude these object attributes from output.
+  --laparams LAPARAMS
+  --precision PRECISION
+  --pages PAGES [PAGES ...]
+  --indent INDENT       Indent level for JSON pretty-printing..
+- **Frontend**: React, JavaScript, TailwindCSS, shadcn/ui, TipTap (rich-text editor).
+- **AI/ML**: RAG for search, Gemini 3 Flash for summarization. Hybrid search combining semantic (Pinecone) and keyword (MongoDB) lookups.
+- **Authentication**: OAuth 2.0 via Emergent-managed Google Auth with a persistent token for sessions.
+
+**key DB schema**
+- **users**: 
+- **articles**: 
+- **documents**: 
+- **categories**: 
+
+**changes in tech stack**
+-  extensions for YouTube, tables, and image handling were added.
+
+**All files of reference**
+- : Contains all backend logic, including the new endpoints for user deletion, document deletion, view tracking, and the upcoming image upload.
+- : The page hosting the WYSIWYG editor. Needs to be updated with the  prop.
+- : The editor component that needs the  prop to enable image uploads.
+- : Updated to include suspend and delete functionality.
+- : The new split-view page for browsing knowledge.
+- : Contains the theme mode dropdown.
+- : Updated with improved UI for displaying search results.
+
+**Areas that need refactoring**:
+- The  file is becoming very large and monolithic. It could be beneficial to split the API routes into multiple files based on domain (e.g., , , ) using FastAPI's .
+
+**key api endpoints**
+- : **(To be created)** For uploading images from the editor.
+- : Deletes a user.
+- : Suspends/activates a user.
+- : Deletes an uploaded document.
+- : Gets the most viewed articles.
+- : Gets popular articles for the dashboard.
+- : Securely serves a PDF for embedding in an iframe.
+- : Checks if a file already exists before upload.
+
+**Critical Info for New Agent**
+- **You MUST respond in German.**
+- Start by implementing the image upload feature. This is a P0 task and a direct continuation of the last agent's work.
+- After fixing the image upload, implement the Keep me logged in feature.
+- Be aware of the user's recurring dissatisfaction with AI search precision and PDF import fidelity. These are high-value targets for future work.
+- The application architecture is moving towards a more complex state. Consider suggesting a backend refactor (splitting ) after the current tasks are complete.
+
+**documents and test reports created in this job**
+-  (updated multiple times)
+- Multiple test reports in 
+
+**Last 10 User Messages and any pending HUMAN messages**
+1.   User confirms to proceed with the plan. **Status: DONE**.
+2.   Agent asks for confirmation to start working on the image upload bug and keep me logged in feature. **Status: Awaiting User Reply**.
+3.   User reports that image upload doesn't work and requests a keep me logged in option. **Status: PENDING**.
+4.   User confirms to proceed with the plan. **Status: DONE**.
+5.   Agent proposes a plan to fix PDF download bug, improve search, and enhance the dashboard. **Status: Awaiting User Reply**.
+6.   User reports bugs with PDF embedding (auto-download), requests duplicate file check, and asks for better search precision and dashboard improvements. **Status: PENDING**.
+7.   User says Los (Go). **Status: DONE**.
+8.   Agent proposes a plan to fix UI overflow, improve the theme selector, and add user deletion. **Status: Awaiting User Reply**.
+9.   User reports a UI overflow bug, a non-functional theme button, and requests PDF embedding improvements and user deletion. **Status: PENDING**.
+10.  User confirms to proceed with the plan. **Status: DONE**.
+
+**Project Health Check:**
+- **Broken**: Image upload in the editor is non-functional.
+- **Mocked**: None.
+
+**3rd Party Integrations**
+- **Pinecone**: Vector database for RAG. Requires a User API Key ().
+- **Gemini 3 Flash**: Used for AI-powered summarization. Uses the .
+- **Emergent-managed Google Auth**: Handles user authentication and login flow.
+
+**Testing status**
+- **Testing agent used after significant changes**: YES
+- **Troubleshoot agent used after agent stuck in loop**: NO
+- **Test files created**: []
+- **Known regressions**: None.
+
+**Credentials to test flow:**
+A Google account with an email ending in  or  is required for full end-to-end testing. The agent can mock user data or test individual components/APIs without a full login.
+
+**What agent forgot to execute**
+The agent has consistently delivered on user requests in a phased manner. However, the core, high-fidelity PDF import (converting tables/layouts into editable HTML) that was requested early on has been replaced by a PDF embedding workaround. While the workaround was accepted, the original, more complex requirement remains unfulfilled and is a good candidate for future work.</analysis>
