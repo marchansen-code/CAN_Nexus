@@ -11,9 +11,7 @@ import {
   FolderTree,
   Settings,
   LogOut,
-  Brain,
   Menu,
-  X,
   Users
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -43,13 +41,15 @@ const Sidebar = ({ className = "", onNavigate }) => {
       {/* Logo */}
       <div className="p-6 border-b">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-indigo-500 flex items-center justify-center">
-            <Brain className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h1 className="font-bold text-lg font-['Plus_Jakarta_Sans']">Knowledge</h1>
-            <p className="text-xs text-muted-foreground">Nexus</p>
-          </div>
+          <img 
+            src="https://www.canusa.de/_Resources/Static/Packages/Canusa.CanusaDe/Images/logo-canusa.svg" 
+            alt="CANUSA" 
+            className="h-8"
+            onError={(e) => {
+              e.target.style.display = 'none';
+            }}
+          />
+          <span className="text-sm text-muted-foreground border-l pl-2">Knowledge Hub</span>
         </div>
       </div>
 
@@ -63,7 +63,7 @@ const Sidebar = ({ className = "", onNavigate }) => {
             className={({ isActive }) =>
               `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                 isActive
-                  ? "bg-indigo-50 text-indigo-700 border-l-2 border-indigo-500 -ml-[2px]"
+                  ? "bg-red-50 text-red-700 border-l-2 border-red-500 -ml-[2px]"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted"
               }`
             }
@@ -77,7 +77,7 @@ const Sidebar = ({ className = "", onNavigate }) => {
       {/* Footer */}
       <div className="p-4 border-t">
         <p className="text-xs text-muted-foreground text-center">
-          Smart Knowledge Nexus v1.0
+          CANUSA Knowledge Hub v1.0
         </p>
       </div>
     </aside>
@@ -110,7 +110,7 @@ const Header = () => {
   };
 
   return (
-    <header className="h-16 border-b bg-white/70 backdrop-blur-xl sticky top-0 z-40">
+    <header className="h-16 border-b bg-white/80 backdrop-blur-xl sticky top-0 z-40">
       <div className="h-full px-4 lg:px-8 flex items-center justify-between">
         {/* Mobile Menu */}
         <div className="lg:hidden">
@@ -128,10 +128,8 @@ const Header = () => {
 
         {/* Mobile Logo */}
         <div className="lg:hidden flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center">
-            <Brain className="w-4 h-4 text-white" />
-          </div>
-          <span className="font-bold">Knowledge Nexus</span>
+          <span className="font-bold text-red-600">CANUSA</span>
+          <span className="text-sm text-muted-foreground">Knowledge Hub</span>
         </div>
 
         {/* Spacer for desktop */}
@@ -143,7 +141,7 @@ const Header = () => {
             <Button variant="ghost" className="gap-2 h-auto py-2" data-testid="user-menu-trigger">
               <Avatar className="w-8 h-8">
                 <AvatarImage src={user?.picture} alt={user?.name} />
-                <AvatarFallback className="bg-indigo-100 text-indigo-700 text-sm">
+                <AvatarFallback className="bg-red-100 text-red-700 text-sm">
                   {getInitials(user?.name)}
                 </AvatarFallback>
               </Avatar>
