@@ -216,7 +216,7 @@ const Articles = () => {
   }
 
   return (
-    <div className="space-y-6 animate-fadeIn h-full" data-testid="articles-page">
+    <div className="space-y-4 animate-fadeIn h-full max-w-full overflow-hidden" data-testid="articles-page">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
