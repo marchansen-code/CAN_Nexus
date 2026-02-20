@@ -3,22 +3,6 @@
 ## Original Problem Statement
 KI-gestützte Wissensmanagement-Plattform für CANUSA Touristik GmbH & Co. KG und CU-Travel, spezialisiert auf automatisierten Content-Import und intelligente Abfrage.
 
-## User Personas
-1. **Knowledge Manager** - Verwaltet die Wissensbasis, erstellt Kategorien, überwacht Workflow
-2. **Content Editor** - Erstellt und bearbeitet Wissensartikel, importiert PDFs
-3. **Support Agent** - Nutzt KI-Suche für schnelle Antworten
-4. **Administrator** - Verwaltet Benutzer und Zugriffsrechte
-
-## Core Requirements (Static)
-- [x] PDF-Import mit Struktur-Erhaltung
-- [x] Semantische Suche mit RAG
-- [x] Hierarchische Kategoriestruktur
-- [x] Workflow-Management (Draft/Review/Published)
-- [x] Multichannel Widget-API
-- [x] Benutzerverwaltung mit Rollen
-- [x] Domain-Beschränkung (@canusa.de, @cu-travel.com)
-- [x] CANUSA-Branding und Farbschema
-
 ## Technology Stack
 - **Frontend**: React 18, TailwindCSS, Shadcn/UI, TipTap Rich Editor
 - **Backend**: FastAPI, Python 3.11
@@ -26,82 +10,25 @@ KI-gestützte Wissensmanagement-Plattform für CANUSA Touristik GmbH & Co. KG un
 - **AI**: Gemini 3 Flash (Emergent LLM Key)
 - **Auth**: Emergent-managed Google OAuth (Domain-restricted)
 
-## What's Been Implemented
+## Implemented Features
 
-### Phase 1-4 - Core Features (Completed)
+### Core Features
 - ✅ Landing Page mit Google Auth Login
-- ✅ Dashboard mit Statistiken
-- ✅ KI-Suche mit semantischer RAG-Abfrage
+- ✅ Dashboard mit Statistiken, Neueste & Beliebteste Artikel
+- ✅ KI-Suche mit Keyword + Semantischer Suche
 - ✅ Artikel-CRUD mit Status-Workflow
-- ✅ PDF-Upload und automatische Verarbeitung
+- ✅ PDF-Upload und Verarbeitung
 - ✅ Kategorieverwaltung (Baumstruktur)
-- ✅ Widget-API für externe Integration
-- ✅ Rich-Text-Editor mit TipTap
-- ✅ Rollenbasierte Sidebar-Navigation
-- ✅ Vollwertiger WYSIWYG-Editor
 
-### Phase 5 - CANUSA Nexus Rebranding (Completed)
-- ✅ Umbenennung zu "CANUSA Nexus - The Knowledge Hub"
-- ✅ Full-Width Artikelansicht
-- ✅ Top 10 Artikel-Sidebar (systemweit)
-- ✅ View-Count-Tracking für Artikel
-
-### Phase 6 - Advanced Features (20.02.2026)
-- ✅ **Dark/Light/Auto Theme-Mode**
-  - Theme-Toggle im Header (Sonne/Mond/Monitor-Symbol + "Mode")
-  - System-Präferenz-Erkennung für "Auto"
-  - Persistenz via LocalStorage
+### Phase 6 - Advanced Features
+- ✅ **Dark/Light/Auto Theme-Mode** (Dropdown im Header)
 - ✅ **Admin: Dokumente löschen**
-  - DELETE-Endpoint `/api/documents/{id}`
-  - Trash-Icon nur für Admins sichtbar
-- ✅ **Wissensartikel Split-Layout**
-  - Links: Kategorien-Baum (klickbar mit Unterordnern)
-  - Rechts: Artikelliste mit Suche
-  - Oben: Top 10 meistgesehene Artikel
-- ✅ **Dashboard: Beliebteste Artikel**
-  - Neue Sektion unter "Neueste Artikel"
-  - Rangliste mit Aufrufe-Anzahl
-- ✅ **Admin: User sperren**
-  - PUT-Endpoint `/api/users/{id}/block`
-  - Gesperrte User erhalten 403-Fehler
-  - Sperrung-Badge in Benutzerliste
-- ✅ **Verbesserte KI-Suche**
-  - Keyword + Semantische Suche kombiniert
-  - Höhere Scores für Titel-Treffer
-- ✅ **PDF-Import ohne automatische Zusammenfassung**
-  - Nur Content-Extraktion
-  - HTML-Layout-Erhaltung
-  - PDF-Einbettung als Fallback verfügbar
-- ✅ **Autor unter Artikel anzeigen**
-  - "Verfasst von" Sektion mit Avatar, Name, E-Mail
-- ✅ **Ansprechpartner-Feld im Editor**
-  - Dropdown mit User-Liste in Sidebar
-  - Anzeige in Artikelansicht
-
-## Prioritized Backlog
-
-### P0 (Critical) - Completed
-- [x] All core features
-- [x] Theme-Mode Toggle
-- [x] User blocking
-- [x] Document deletion
-- [x] Split-Layout Articles
-
-### P1 (High)
-- [ ] Bild-Extraktion aus PDFs (Base64)
-- [ ] OCR für gescannte PDFs
-- [ ] Perfekte Tabellen-Erhaltung mit Styling
-
-### P2 (Medium)
-- [ ] Versionierung von Artikeln
-- [ ] Kommentar-System für Reviews
-- [ ] Export zu Word/PDF
-- [ ] WebSocket für Echtzeit-Präsenz (statt Polling)
-
-### P3 (Nice to Have)
-- [ ] Mehrsprachige UI
-- [ ] Analytics Dashboard
-- [ ] AI-gestützte Schreibvorschläge
+- ✅ **Wissensartikel Split-Layout** (Kategorien links, Artikel rechts)
+- ✅ **Top 10 Artikel** (kompakt, horizontaler Scroll)
+- ✅ **Admin: User sperren UND löschen**
+- ✅ **PDF-Einbettung** als iFrame + Neuer Tab Option
+- ✅ **Autor unter Artikeln** anzeigen
+- ✅ **Ansprechpartner-Feld** im Editor
 
 ## API Endpoints
 
@@ -114,6 +41,7 @@ KI-gestützte Wissensmanagement-Plattform für CANUSA Touristik GmbH & Co. KG un
 - `GET /api/users` - Alle Benutzer
 - `PUT /api/users/{id}/role` - Rolle ändern
 - `PUT /api/users/{id}/block` - User sperren/entsperren
+- `DELETE /api/users/{id}` - User löschen (Admin only)
 
 ### Articles
 - `GET /api/articles` - Alle Artikel
@@ -142,19 +70,25 @@ KI-gestützte Wissensmanagement-Plattform für CANUSA Touristik GmbH & Co. KG un
 - `POST /api/search` - Semantische + Keyword Suche
 
 ### Stats
-- `GET /api/stats` - Dashboard-Statistiken (inkl. top_articles)
-
-## Admin Users
-- Marc Hansen (marc.hansen@canusa.de) - Administrator
+- `GET /api/stats` - Dashboard-Statistiken
 
 ## Test Coverage
-- Backend: 100% (59 Tests)
-- Frontend: 100% (alle UI-Tests bestanden)
+- Backend: 100% (13/13 Tests)
+- Frontend: 100%
 - Last tested: 20.02.2026
 
-## Key UI Features
-- **Theme Toggle**: Light/Dark/Auto mit Tastenkürzel
-- **Split-Layout**: Kategorien links, Artikel rechts
-- **Top 10 Banner**: Meistgesehene Artikel
-- **User Blocking**: Sperrung mit sofortiger Session-Ungültigkeit
-- **Ansprechpartner**: Pro Artikel zuweisbar
+## Backlog
+
+### P1 (High)
+- [ ] Bild-Extraktion aus PDFs
+- [ ] OCR für gescannte PDFs
+
+### P2 (Medium)
+- [ ] Artikel-Versionierung
+- [ ] Export zu Word/PDF
+- [ ] WebSocket für Echtzeit-Präsenz
+
+### P3 (Nice to Have)
+- [ ] Mehrsprachige UI
+- [ ] Analytics Dashboard
+- [ ] Schnellsuche (Strg+K)
