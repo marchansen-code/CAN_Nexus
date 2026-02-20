@@ -24,8 +24,40 @@ import { Switch } from "@/components/ui/switch";
 const Settings = () => {
   const { user } = useContext(AuthContext);
   const [copied, setCopied] = useState(null);
+  const [stayLoggedIn, setStayLoggedIn] = useState(false);
+  const [updatingSession, setUpdatingSession] = useState(false);
 
   const backendUrl = process.env.REACT_APP_BACKEND_URL;
+
+  // Load preference from localStorage
+  useEffect(() => {
+    const savedPref = localStorage.getItem('stayLoggedIn');
+    setStayLoggedIn(savedPref === 'true');
+  }, []);
+
+  const handleStayLoggedInChange = async (checked) => {
+    setUpdatingSession(true);
+    try {
+      // Save preference locally
+      localStorage.setItem('stayLoggedIn', checked.toString());
+      setStayLoggedIn(checked);
+      
+      // Update session on backend
+      await axios.post(`${API}/auth/extend-session`, {
+        extend: checked
+      });
+      
+      toast.success(checked 
+        ? "Angemeldet bleiben aktiviert (30 Tage)" 
+        : "Session-Dauer zurückgesetzt (7 Tage)"
+      );
+    } catch (error) {
+      console.error("Failed to update session:", error);
+      toast.error("Einstellung konnte nicht gespeichert werden");
+    } finally {
+      setUpdatingSession(false);
+    }
+  };
 
   const widgetCode = `<!-- Smart Knowledge Nexus Widget -->
 <div id="knowledge-widget"></div>
