@@ -670,52 +670,6 @@ const RichTextEditor = ({ content, onChange, placeholder = "Inhalt eingeben...",
       <div className="overflow-auto max-h-[600px]">
         <EditorContent editor={editor} />
       </div>
-      {/* Bubble Menu for quick formatting */}
-      {editor && (
-        <BubbleMenu 
-          editor={editor} 
-          tippyOptions={{ duration: 100 }}
-          className="bg-white shadow-lg rounded-lg border p-1 flex gap-0.5"
-        >
-          <Toggle
-            size="sm"
-            pressed={editor.isActive('bold')}
-            onPressedChange={() => editor.chain().focus().toggleBold().run()}
-            className="h-7 w-7 p-0"
-          >
-            <Bold className="h-3.5 w-3.5" />
-          </Toggle>
-          <Toggle
-            size="sm"
-            pressed={editor.isActive('italic')}
-            onPressedChange={() => editor.chain().focus().toggleItalic().run()}
-            className="h-7 w-7 p-0"
-          >
-            <Italic className="h-3.5 w-3.5" />
-          </Toggle>
-          <Toggle
-            size="sm"
-            pressed={editor.isActive('underline')}
-            onPressedChange={() => editor.chain().focus().toggleUnderline().run()}
-            className="h-7 w-7 p-0"
-          >
-            <UnderlineIcon className="h-3.5 w-3.5" />
-          </Toggle>
-          <Toggle
-            size="sm"
-            pressed={editor.isActive('link')}
-            onPressedChange={() => {
-              const url = window.prompt('URL eingeben:');
-              if (url) {
-                editor.chain().focus().setLink({ href: url }).run();
-              }
-            }}
-            className="h-7 w-7 p-0"
-          >
-            <LinkIcon className="h-3.5 w-3.5" />
-          </Toggle>
-        </BubbleMenu>
-      )}
     </div>
   );
 };
