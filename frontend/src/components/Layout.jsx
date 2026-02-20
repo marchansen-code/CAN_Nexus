@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { API, AuthContext } from "@/App";
 import { toast } from "sonner";
+import { useTheme } from "@/components/ThemeProvider";
 import {
   LayoutDashboard,
   Search,
@@ -12,7 +13,10 @@ import {
   Settings,
   LogOut,
   Menu,
-  Users
+  Users,
+  Moon,
+  Sun,
+  Monitor
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
