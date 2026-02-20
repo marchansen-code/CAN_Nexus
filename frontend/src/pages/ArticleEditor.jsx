@@ -352,7 +352,41 @@ const ArticleEditor = () => {
       setTimeout(checkStatus, 2000);
     } catch (error) {
       console.error("Upload failed:", error);
-      toast.error("Upload fehlgeschlagen");
+      // Check for duplicate error
+      if (error.response?.status === 409) {
+        const confirmOverwrite = window.confirm(
+          `Eine Datei mit dem Namen "${file.name}" existiert bereits. Möchten Sie sie überschreiben?`
+        );
+        if (confirmOverwrite) {
+          // Retry with force=true
+          try {
+            const retryResponse = await axios.post(`${API}/documents/upload?force=true`, formData, {
+              headers: { "Content-Type": "multipart/form-data" }
+            });
+            toast.success("PDF wird verarbeitet (überschrieben)...");
+            
+            const checkRetryStatus = async () => {
+              const docResponse = await axios.get(`${API}/documents/${retryResponse.data.document_id}`);
+              if (docResponse.data.status === "completed") {
+                setPdfDialog({ open: true, preview: docResponse.data });
+                setUploadingPdf(false);
+              } else if (docResponse.data.status === "failed") {
+                toast.error("PDF-Verarbeitung fehlgeschlagen");
+                setUploadingPdf(false);
+              } else {
+                setTimeout(checkRetryStatus, 2000);
+              }
+            };
+            setTimeout(checkRetryStatus, 2000);
+            event.target.value = "";
+            return;
+          } catch (retryError) {
+            toast.error("Überschreiben fehlgeschlagen");
+          }
+        }
+      } else {
+        toast.error("Upload fehlgeschlagen");
+      }
       setUploadingPdf(false);
     }
     
