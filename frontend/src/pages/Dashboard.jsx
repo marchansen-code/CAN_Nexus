@@ -347,6 +347,45 @@ const Dashboard = () => {
         </CardContent>
       </Card>
 
+      {/* Most Popular Articles */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-canusa-red" />
+            Beliebteste Artikel
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {stats?.top_articles?.length > 0 ? (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {stats.top_articles.map((article, index) => (
+                <div
+                  key={article.article_id}
+                  className="flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/50 transition-colors cursor-pointer"
+                  onClick={() => navigate(`/articles/${article.article_id}`)}
+                >
+                  <span className="shrink-0 w-8 h-8 rounded-full bg-red-100 text-red-700 flex items-center justify-center font-bold text-sm">
+                    {index + 1}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium truncate">{article.title}</p>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Eye className="w-3 h-3" />
+                      {article.view_count || 0} Aufrufe
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-6 text-muted-foreground">
+              <TrendingUp className="w-10 h-10 mx-auto mb-2 opacity-30" />
+              <p className="text-sm">Noch keine Daten</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Workflow Overview */}
       <Card>
         <CardHeader>
