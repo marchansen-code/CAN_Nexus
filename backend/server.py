@@ -1091,7 +1091,7 @@ async def widget_get_article(article_id: str):
 
 @api_router.get("/")
 async def root():
-    return {"message": "Smart-Knowledge-Nexus API", "version": "1.0.0"}
+    return {"message": "CANUSA Knowledge Hub API", "version": "1.0.0"}
 
 # Include the router in the main app
 app.include_router(api_router)
