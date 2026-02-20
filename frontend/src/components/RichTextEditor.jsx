@@ -418,38 +418,6 @@ const RichTextEditor = ({ content, onChange, placeholder = "Inhalt eingeben...",
     <div className={cn("border rounded-lg overflow-hidden bg-white", className)}>
       <EditorToolbar editor={editor} />
       <EditorContent editor={editor} />
-      
-      {/* Bubble Menu for quick formatting */}
-      {editor && (
-        <BubbleMenu editor={editor} tippyOptions={{ duration: 100 }}>
-          <div className="bg-white border rounded-lg shadow-lg p-1 flex items-center gap-1">
-            <MenuButton
-              onClick={() => editor.chain().focus().toggleBold().run()}
-              isActive={editor.isActive('bold')}
-            >
-              <Bold className="h-3 w-3" />
-            </MenuButton>
-            <MenuButton
-              onClick={() => editor.chain().focus().toggleItalic().run()}
-              isActive={editor.isActive('italic')}
-            >
-              <Italic className="h-3 w-3" />
-            </MenuButton>
-            <MenuButton
-              onClick={() => editor.chain().focus().toggleUnderline().run()}
-              isActive={editor.isActive('underline')}
-            >
-              <UnderlineIcon className="h-3 w-3" />
-            </MenuButton>
-            <MenuButton
-              onClick={() => editor.chain().focus().toggleHighlight().run()}
-              isActive={editor.isActive('highlight')}
-            >
-              <Highlighter className="h-3 w-3" />
-            </MenuButton>
-          </div>
-        </BubbleMenu>
-      )}
     </div>
   );
 };
