@@ -243,7 +243,7 @@ async def create_session(request: Request, response: Response):
     if email_domain not in ALLOWED_DOMAINS:
         raise HTTPException(
             status_code=403, 
-            detail=f"Zugang nur für Mitarbeiter von CANUSA und CU-Travel. Bitte verwenden Sie Ihre @canusa.de oder @cu-travel.com E-Mail-Adresse."
+            detail="Zugang nur für Mitarbeiter von CANUSA und CU-Travel. Bitte verwenden Sie Ihre @canusa.de oder @cu-travel.com E-Mail-Adresse."
         )
     
     # Create or update user
