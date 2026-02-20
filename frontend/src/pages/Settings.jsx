@@ -140,10 +140,48 @@ const Settings = () => {
                   <p className="font-semibold text-lg">{user?.name}</p>
                   <p className="text-muted-foreground">{user?.email}</p>
                   <Badge variant="outline" className="mt-2">
-                    {user?.role === "admin" ? "Administrator" : "Editor"}
+                    {user?.role === "admin" ? "Administrator" : user?.role === "editor" ? "Editor" : "Viewer"}
                   </Badge>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Session Settings */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <LogIn className="w-5 h-5" />
+                Anmeldung & Sitzung
+              </CardTitle>
+              <CardDescription>
+                Einstellungen für Ihre Anmeldesitzung
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                <div className="space-y-1">
+                  <Label htmlFor="stay-logged-in" className="font-medium">
+                    Angemeldet bleiben
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    {stayLoggedIn 
+                      ? "Ihre Sitzung bleibt 30 Tage aktiv" 
+                      : "Ihre Sitzung läuft nach 7 Tagen ab"}
+                  </p>
+                </div>
+                <Switch
+                  id="stay-logged-in"
+                  checked={stayLoggedIn}
+                  onCheckedChange={handleStayLoggedInChange}
+                  disabled={updatingSession}
+                  data-testid="stay-logged-in-switch"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Aktivieren Sie diese Option, um länger angemeldet zu bleiben. 
+                Empfohlen für persönliche Geräte. Deaktivieren Sie diese Option auf gemeinsam genutzten Computern.
+              </p>
             </CardContent>
           </Card>
         </TabsContent>
