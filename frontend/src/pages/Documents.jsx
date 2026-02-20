@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { API } from "@/App";
+import { API, AuthContext } from "@/App";
 import { toast } from "sonner";
 import {
   Upload,
@@ -13,7 +13,8 @@ import {
   Eye,
   Plus,
   RefreshCw,
-  Languages
+  Languages,
+  Trash2
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
