@@ -102,11 +102,11 @@ class BackendAPITester:
         print("SETTING UP TEST SESSION")
         print("=" * 60)
         
-        # Use the session token created in MongoDB
-        test_session_token = "test_session_1771578839197"
+        # Use the session token from the request
+        test_session_token = "test_session_1771581159911"
         
         print(f"Using test session token: {test_session_token}")
-        print("✅ Test session created in MongoDB")
+        print("✅ Test session provided in request")
         
         self.session_token = test_session_token
         return True
