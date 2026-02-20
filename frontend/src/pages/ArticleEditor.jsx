@@ -965,10 +965,31 @@ const ArticleEditor = () => {
                   Anderes PDF
                 </Button>
                 <Button 
+                  variant="outline"
+                  onClick={() => {
+                    // Embed PDF as iframe in content
+                    const pdfEmbed = `<div class="pdf-embed my-6 border rounded-lg overflow-hidden">
+                      <iframe src="${API}/documents/${pdfDialog.preview.document_id}/pdf" 
+                        style="width:100%;height:600px;border:none;" 
+                        title="${pdfDialog.preview.filename}">
+                      </iframe>
+                    </div>`;
+                    setArticle(prev => ({
+                      ...prev,
+                      content: prev.content + pdfEmbed,
+                      title: prev.title || pdfDialog.preview.filename.replace(".pdf", "")
+                    }));
+                    toast.success("PDF eingebettet");
+                    setPdfDialog({ open: false, preview: null });
+                  }}
+                >
+                  PDF einbetten
+                </Button>
+                <Button 
                   onClick={() => insertPdfContent(pdfDialog.preview, false)}
                   className="bg-canusa-red hover:bg-red-600"
                 >
-                  Inhalt übernehmen
+                  Text übernehmen
                 </Button>
               </>
             ) : (
