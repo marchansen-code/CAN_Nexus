@@ -165,12 +165,26 @@ const Search = () => {
                         <div className="space-y-2 flex-1">
                           <div className="flex items-center gap-2">
                             <h4 className="font-semibold">{source.title}</h4>
-                            <Badge variant="outline" className="text-xs">
+                            <Badge 
+                              variant="outline" 
+                              className={`text-xs ${
+                                source.score >= 0.8 ? 'bg-emerald-50 text-emerald-700 border-emerald-300' :
+                                source.score >= 0.6 ? 'bg-amber-50 text-amber-700 border-amber-300' :
+                                'bg-slate-50 text-slate-700 border-slate-300'
+                              }`}
+                            >
                               {Math.round(source.score * 100)}% Relevanz
                             </Badge>
                           </div>
-                          <p className="text-sm text-muted-foreground line-clamp-2">
-                            {source.content_snippet}
+                          <p className="text-sm text-muted-foreground">
+                            {source.content_snippet?.includes('...') ? (
+                              <span dangerouslySetInnerHTML={{ 
+                                __html: source.content_snippet
+                                  .replace(/\.\.\./g, '<span class="text-xs text-muted-foreground/50">...</span>')
+                              }} />
+                            ) : (
+                              source.content_snippet
+                            )}
                           </p>
                         </div>
                         <Button variant="ghost" size="icon">
