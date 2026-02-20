@@ -12,11 +12,15 @@ import {
   Clock,
   ChevronRight,
   Plus,
-  Eye
+  Eye,
+  Star,
+  User,
+  History
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const StatCard = ({ title, value, icon: Icon, trend, color }) => (
   <Card className="hover:shadow-float transition-all duration-300">
@@ -24,7 +28,7 @@ const StatCard = ({ title, value, icon: Icon, trend, color }) => (
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm text-muted-foreground font-medium">{title}</p>
-          <p className="text-3xl font-bold mt-2 font-['Plus_Jakarta_Sans']">{value}</p>
+          <p className="text-3xl font-bold mt-2">{value}</p>
           {trend && (
             <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1">
               <TrendingUp className="w-3 h-3" />
@@ -60,6 +64,34 @@ const StatusBadge = ({ status }) => {
   );
 };
 
+const ArticleCard = ({ article, onClick }) => {
+  const formatDate = (dateString) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("de-DE", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric"
+    });
+  };
+
+  return (
+    <div
+      className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors cursor-pointer"
+      onClick={onClick}
+    >
+      <div className="space-y-1 min-w-0 flex-1">
+        <p className="font-medium truncate">{article.title}</p>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Clock className="w-3 h-3" />
+          {formatDate(article.updated_at)}
+        </div>
+      </div>
+      <StatusBadge status={article.status} />
+    </div>
+  );
+};
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
@@ -82,22 +114,10 @@ const Dashboard = () => {
     fetchStats();
   }, []);
 
-  const formatDate = (dateString) => {
-    if (!dateString) return "";
-    const date = new Date(dateString);
-    return date.toLocaleDateString("de-DE", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit"
-    });
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-8 h-8 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
@@ -107,8 +127,8 @@ const Dashboard = () => {
       {/* Welcome Section */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight font-['Plus_Jakarta_Sans']">
-            Willkommen zurück, {user?.name?.split(" ")[0]}
+          <h1 className="text-3xl font-bold tracking-tight">
+            Willkommen, {user?.name?.split(" ")[0]}
           </h1>
           <p className="text-muted-foreground mt-1">
             Hier ist eine Übersicht Ihrer Wissensdatenbank
@@ -119,20 +139,20 @@ const Dashboard = () => {
             <Upload className="w-4 h-4 mr-2" />
             PDF hochladen
           </Button>
-          <Button onClick={() => navigate("/articles/new")} className="bg-indigo-600 hover:bg-indigo-700" data-testid="new-article-btn">
+          <Button onClick={() => navigate("/articles/new")} className="bg-canusa-red hover:bg-red-600" data-testid="new-article-btn">
             <Plus className="w-4 h-4 mr-2" />
             Neuer Artikel
           </Button>
         </div>
       </div>
 
-      {/* Stats Grid - Bento Layout */}
+      {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Artikel gesamt"
           value={stats?.total_articles || 0}
           icon={FileText}
-          color="bg-indigo-100 text-indigo-600"
+          color="bg-red-100 text-red-600"
         />
         <StatCard
           title="Veröffentlicht"
@@ -149,18 +169,106 @@ const Dashboard = () => {
         <StatCard
           title="Dokumente"
           value={stats?.total_documents || 0}
-          icon={Upload}
           trend={stats?.pending_documents > 0 ? `${stats.pending_documents} in Verarbeitung` : undefined}
+          icon={Upload}
           color="bg-slate-100 text-slate-600"
         />
       </div>
 
-      {/* Quick Actions + Recent Articles */}
+      {/* User Stats Card */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <User className="w-5 h-5" />
+            Ihre Statistik
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-6">
+            <Avatar className="w-16 h-16">
+              <AvatarImage src={user?.picture} alt={user?.name} />
+              <AvatarFallback className="bg-red-100 text-red-700 text-xl">
+                {user?.name?.split(" ").map(n => n[0]).join("").slice(0, 2)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="grid grid-cols-2 gap-8">
+              <div>
+                <p className="text-3xl font-bold">{stats?.user_stats?.articles_created || 0}</p>
+                <p className="text-sm text-muted-foreground">Artikel erstellt</p>
+              </div>
+              <div>
+                <p className="text-3xl font-bold">{stats?.user_stats?.documents_uploaded || 0}</p>
+                <p className="text-sm text-muted-foreground">PDFs hochgeladen</p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Content Grid */}
       <div className="grid lg:grid-cols-3 gap-6">
+        {/* Favorites */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Star className="w-5 h-5 text-amber-500" />
+              Favoriten
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {stats?.favorite_articles?.length > 0 ? (
+              <div className="space-y-2">
+                {stats.favorite_articles.slice(0, 5).map((article) => (
+                  <ArticleCard
+                    key={article.article_id}
+                    article={article}
+                    onClick={() => navigate(`/articles/${article.article_id}`)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-6 text-muted-foreground">
+                <Star className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                <p className="text-sm">Keine Favoriten</p>
+                <p className="text-xs">Markieren Sie Artikel mit ⭐</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Recently Viewed */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <History className="w-5 h-5 text-blue-500" />
+              Zuletzt angesehen
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {stats?.recently_viewed?.length > 0 ? (
+              <div className="space-y-2">
+                {stats.recently_viewed.slice(0, 5).map((article) => (
+                  <ArticleCard
+                    key={article.article_id}
+                    article={article}
+                    onClick={() => navigate(`/articles/${article.article_id}`)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-6 text-muted-foreground">
+                <History className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                <p className="text-sm">Keine Ansichten</p>
+                <p className="text-xs">Öffnen Sie Artikel zum Anzeigen</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Quick Actions */}
-        <Card className="lg:col-span-1">
-          <CardHeader>
-            <CardTitle className="text-lg font-['Plus_Jakarta_Sans']">Schnellzugriff</CardTitle>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">Schnellzugriff</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <Button
@@ -169,10 +277,10 @@ const Dashboard = () => {
               onClick={() => navigate("/search")}
               data-testid="quick-search-btn"
             >
-              <Search className="w-5 h-5 mr-3 text-indigo-500" />
+              <Search className="w-5 h-5 mr-3 text-red-500" />
               <div className="text-left">
                 <p className="font-medium">KI-Suche</p>
-                <p className="text-xs text-muted-foreground">Stellen Sie Fragen an Ihre Wissensdatenbank</p>
+                <p className="text-xs text-muted-foreground">Fragen an die Wissensdatenbank</p>
               </div>
             </Button>
             <Button
@@ -195,67 +303,54 @@ const Dashboard = () => {
             >
               <FolderTree className="w-5 h-5 mr-3 text-amber-500" />
               <div className="text-left">
-                <p className="font-medium">Kategorien verwalten</p>
-                <p className="text-xs text-muted-foreground">Struktur Ihrer Wissensbasis</p>
+                <p className="font-medium">Kategorien</p>
+                <p className="text-xs text-muted-foreground">Struktur verwalten</p>
               </div>
             </Button>
-          </CardContent>
-        </Card>
-
-        {/* Recent Articles */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg font-['Plus_Jakarta_Sans']">Neueste Artikel</CardTitle>
-            <Button variant="ghost" size="sm" onClick={() => navigate("/articles")} data-testid="view-all-articles-btn">
-              Alle anzeigen
-              <ChevronRight className="w-4 h-4 ml-1" />
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {stats?.recent_articles?.length > 0 ? (
-              <div className="space-y-4">
-                {stats.recent_articles.map((article) => (
-                  <div
-                    key={article.article_id}
-                    className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors cursor-pointer"
-                    onClick={() => navigate(`/articles/${article.article_id}`)}
-                    data-testid={`article-${article.article_id}`}
-                  >
-                    <div className="space-y-1">
-                      <p className="font-medium">{article.title}</p>
-                      <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {formatDate(article.updated_at)}
-                        </span>
-                        <StatusBadge status={article.status} />
-                      </div>
-                    </div>
-                    <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <FileText className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
-                <p className="text-muted-foreground">Noch keine Artikel vorhanden</p>
-                <Button 
-                  variant="outline" 
-                  className="mt-4"
-                  onClick={() => navigate("/articles/new")}
-                >
-                  Ersten Artikel erstellen
-                </Button>
-              </div>
-            )}
           </CardContent>
         </Card>
       </div>
 
+      {/* Recent Articles */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-lg">Neueste Artikel</CardTitle>
+          <Button variant="ghost" size="sm" onClick={() => navigate("/articles")} data-testid="view-all-articles-btn">
+            Alle anzeigen
+            <ChevronRight className="w-4 h-4 ml-1" />
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {stats?.recent_articles?.length > 0 ? (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {stats.recent_articles.map((article) => (
+                <ArticleCard
+                  key={article.article_id}
+                  article={article}
+                  onClick={() => navigate(`/articles/${article.article_id}`)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <FileText className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
+              <p className="text-muted-foreground">Noch keine Artikel vorhanden</p>
+              <Button 
+                variant="outline" 
+                className="mt-4"
+                onClick={() => navigate("/articles/new")}
+              >
+                Ersten Artikel erstellen
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Workflow Overview */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg font-['Plus_Jakarta_Sans']">Workflow-Übersicht</CardTitle>
+          <CardTitle className="text-lg">Workflow-Übersicht</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
