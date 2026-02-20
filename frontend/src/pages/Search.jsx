@@ -42,10 +42,10 @@ const Search = () => {
   };
 
   const exampleQueries = [
-    "Wie funktioniert der Rückgabeprozess?",
-    "Was sind die Garantiebedingungen?",
-    "Wie kann ich mein Passwort zurücksetzen?",
-    "Welche Zahlungsmethoden werden akzeptiert?"
+    "Welche Hotels gibt es auf Maui?",
+    "Unternehmungen in Westkanada",
+    "Mietwagen in Kalifornien",
+    "Beste Reisezeit für Alaska"
   ];
 
   return (
