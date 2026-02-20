@@ -967,9 +967,9 @@ const ArticleEditor = () => {
                 <Button 
                   variant="outline"
                   onClick={() => {
-                    // Embed PDF as iframe in content
+                    // Embed PDF as iframe in content using public endpoint
                     const pdfEmbed = `<div class="pdf-embed my-6 border rounded-lg overflow-hidden">
-                      <iframe src="${API}/documents/${pdfDialog.preview.document_id}/pdf" 
+                      <iframe src="${API}/documents/${pdfDialog.preview.document_id}/pdf-embed" 
                         style="width:100%;height:600px;border:none;" 
                         title="${pdfDialog.preview.filename}">
                       </iframe>
