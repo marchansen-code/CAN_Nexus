@@ -145,7 +145,7 @@ const Header = () => {
   };
 
   return (
-    <header className="h-16 border-b bg-white/80 backdrop-blur-xl sticky top-0 z-40">
+    <header className="h-16 border-b bg-card/80 backdrop-blur-xl sticky top-0 z-40">
       <div className="h-full px-4 lg:px-8 flex items-center justify-between">
         {/* Mobile Menu */}
         <div className="lg:hidden">
@@ -170,19 +170,33 @@ const Header = () => {
         {/* Spacer for desktop */}
         <div className="hidden lg:block" />
 
-        {/* User Menu */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="gap-2 h-auto py-2" data-testid="user-menu-trigger">
-              <Avatar className="w-8 h-8">
-                <AvatarImage src={user?.picture} alt={user?.name} />
-                <AvatarFallback className="bg-red-100 text-red-700 text-sm">
-                  {getInitials(user?.name)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="hidden sm:block text-left">
-                <span className="text-sm font-medium block">{user?.name}</span>
-                <span className="text-xs text-muted-foreground">{getRoleLabel(user?.role)}</span>
+        {/* Theme Toggle & User Menu */}
+        <div className="flex items-center gap-2">
+          {/* Theme Toggle */}
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={cycleTheme}
+            className="gap-1.5 text-muted-foreground hover:text-foreground"
+            data-testid="theme-toggle"
+          >
+            {getThemeIcon()}
+            <span className="hidden sm:inline text-xs">Mode</span>
+          </Button>
+
+          {/* User Menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="gap-2 h-auto py-2" data-testid="user-menu-trigger">
+                <Avatar className="w-8 h-8">
+                  <AvatarImage src={user?.picture} alt={user?.name} />
+                  <AvatarFallback className="bg-red-100 text-red-700 text-sm">
+                    {getInitials(user?.name)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="hidden sm:block text-left">
+                  <span className="text-sm font-medium block">{user?.name}</span>
+                  <span className="text-xs text-muted-foreground">{getRoleLabel(user?.role)}</span>
               </div>
             </Button>
           </DropdownMenuTrigger>
