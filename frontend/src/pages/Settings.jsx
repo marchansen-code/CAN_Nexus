@@ -1,4 +1,5 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect } from "react";
+import axios from "axios";
 import { AuthContext, API } from "@/App";
 import { toast } from "sonner";
 import {
@@ -8,7 +9,9 @@ import {
   Copy,
   Check,
   ExternalLink,
-  Globe
+  Globe,
+  Shield,
+  LogIn
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 
 const Settings = () => {
   const { user } = useContext(AuthContext);
