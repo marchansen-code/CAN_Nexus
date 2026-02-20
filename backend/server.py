@@ -676,7 +676,7 @@ async def upload_document(
     }
 
 async def process_document(document_id: str, file_path: str, target_language: str):
-    """Process PDF document: extract text, images, tables, summarize, translate"""
+    """Process PDF document: extract text, images, tables - keep original layout"""
     try:
         await db.documents.update_one(
             {"document_id": document_id},
@@ -685,6 +685,7 @@ async def process_document(document_id: str, file_path: str, target_language: st
         
         # Extract text, tables, and images from PDF
         extracted_text = ""
+        html_content = ""  # HTML representation of PDF content
         page_count = 0
         extracted_tables = []
         extracted_images = []
@@ -692,24 +693,37 @@ async def process_document(document_id: str, file_path: str, target_language: st
         with pdfplumber.open(file_path) as pdf:
             page_count = len(pdf.pages)
             for page_num, page in enumerate(pdf.pages, 1):
-                # Extract text
+                html_content += f"<div class='pdf-page' data-page='{page_num}'>"
+                
+                # Extract text with layout preservation
                 text = page.extract_text()
                 if text:
                     extracted_text += f"--- Seite {page_num} ---\n{text}\n\n"
+                    # Convert paragraphs to HTML
+                    paragraphs = text.split('\n\n')
+                    for para in paragraphs:
+                        if para.strip():
+                            # Check if it looks like a heading (short, possibly uppercase)
+                            if len(para.strip()) < 100 and para.strip().isupper():
+                                html_content += f"<h3>{para.strip()}</h3>"
+                            else:
+                                html_content += f"<p>{para.strip()}</p>"
                 
-                # Extract tables
+                # Extract tables with better formatting
                 tables = page.extract_tables()
                 for table_idx, table in enumerate(tables):
                     if table and len(table) > 0:
-                        # Convert table to HTML format
-                        table_html = "<table class='border-collapse w-full my-4'>"
+                        # Convert table to styled HTML
+                        table_html = "<table class='w-full border-collapse my-4 text-sm'>"
                         for row_idx, row in enumerate(table):
                             if row:
-                                tag = "th" if row_idx == 0 else "td"
                                 table_html += "<tr>"
                                 for cell in row:
                                     cell_content = cell if cell else ""
-                                    table_html += f"<{tag} class='border border-slate-300 p-2'>{cell_content}</{tag}>"
+                                    if row_idx == 0:
+                                        table_html += f"<th class='border border-slate-400 bg-slate-100 p-2 font-semibold text-left'>{cell_content}</th>"
+                                    else:
+                                        table_html += f"<td class='border border-slate-300 p-2'>{cell_content}</td>"
                                 table_html += "</tr>"
                         table_html += "</table>"
                         extracted_tables.append({
@@ -719,83 +733,31 @@ async def process_document(document_id: str, file_path: str, target_language: st
                             "rows": len(table),
                             "cols": len(table[0]) if table else 0
                         })
+                        html_content += table_html
                 
-                # Extract images (metadata only - actual extraction would need additional libraries)
-                if hasattr(page, 'images') and page.images:
-                    for img_idx, img in enumerate(page.images):
-                        extracted_images.append({
-                            "page": page_num,
-                            "index": img_idx,
-                            "width": img.get("width", 0),
-                            "height": img.get("height", 0),
-                            "x": img.get("x0", 0),
-                            "y": img.get("top", 0)
-                        })
+                html_content += "</div>"
         
         if not extracted_text.strip():
             raise Exception("No text could be extracted from PDF")
         
-        # Detect language and summarize using Gemini
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=f"doc_{document_id}",
-            system_message="Du bist ein Experte für Dokumentenanalyse und Wissensmanagement. Antworte immer auf Deutsch."
-        ).with_model("gemini", "gemini-3-flash-preview")
-        
-        # Create summary and structure
-        summary_prompt = f"""Analysiere den folgenden Text und erstelle:
-1. Eine kurze Zusammenfassung (max. 200 Wörter)
-2. Die Hauptpunkte als Bulletpoints
-3. Erkenne die Originalsprache des Dokuments
-4. Identifiziere wichtige Überschriften/Abschnitte
-
-Text:
-{extracted_text[:8000]}
-
-Antworte im folgenden Format:
-SPRACHE: [erkannte Sprache]
-ZUSAMMENFASSUNG:
-[Zusammenfassung]
-
-ÜBERSCHRIFTEN:
-- [Überschrift 1]
-- [Überschrift 2]
-
-HAUPTPUNKTE:
-- [Punkt 1]
-- [Punkt 2]
-..."""
-        
-        summary_message = UserMessage(text=summary_prompt)
-        summary_response = await chat.send_message(summary_message)
-        
-        # Parse response
-        original_language = "unbekannt"
-        summary = ""
-        structured_content = {"headlines": [], "bulletpoints": [], "tables": extracted_tables, "images": extracted_images}
-        
-        lines = summary_response.split("\n")
-        current_section = None
-        
-        for line in lines:
-            if line.startswith("SPRACHE:"):
-                original_language = line.replace("SPRACHE:", "").strip()
-            elif line.startswith("ZUSAMMENFASSUNG:"):
-                current_section = "summary"
-            elif line.startswith("ÜBERSCHRIFTEN:"):
-                current_section = "headlines"
-            elif line.startswith("HAUPTPUNKTE:"):
-                current_section = "bulletpoints"
-            elif current_section == "summary":
-                summary += line + " "
-            elif current_section == "headlines" and line.strip().startswith("-"):
-                structured_content["headlines"].append(line.strip()[1:].strip())
-            elif current_section == "bulletpoints" and line.strip().startswith("-"):
-                structured_content["bulletpoints"].append(line.strip()[1:].strip())
+        # Detect language using simple heuristics
+        german_words = ["und", "der", "die", "das", "ist", "für", "von", "mit", "auf", "ein"]
+        english_words = ["and", "the", "is", "for", "of", "with", "on", "a", "an", "to"]
+        text_lower = extracted_text.lower()
+        german_count = sum(1 for w in german_words if f" {w} " in text_lower)
+        english_count = sum(1 for w in english_words if f" {w} " in text_lower)
+        original_language = "Deutsch" if german_count > english_count else "Englisch"
         
         # Translate if needed
-        if original_language.lower() not in ["deutsch", "german", "de"]:
-            translate_prompt = f"""Übersetze den folgenden Text ins Deutsche. Behalte die Struktur bei:
+        if target_language == "de" and original_language.lower() not in ["deutsch", "german", "de"]:
+            chat = LlmChat(
+                api_key=EMERGENT_LLM_KEY,
+                session_id=f"doc_{document_id}",
+                system_message="Du bist ein professioneller Übersetzer. Übersetze Texte präzise ins Deutsche."
+            ).with_model("gemini", "gemini-3-flash-preview")
+            
+            translate_prompt = f"""Übersetze den folgenden Text ins Deutsche. 
+Behalte die Struktur und Formatierung bei. Übersetze nur den Text, keine HTML-Tags ändern.
 
 {extracted_text[:6000]}"""
             
@@ -803,7 +765,15 @@ HAUPTPUNKTE:
             translated_text = await chat.send_message(translate_message)
             extracted_text = translated_text
         
-        # Update document
+        structured_content = {
+            "headlines": [],
+            "bulletpoints": [],
+            "tables": extracted_tables,
+            "images": extracted_images,
+            "html_content": html_content
+        }
+        
+        # Update document - NO SUMMARY generated
         await db.documents.update_one(
             {"document_id": document_id},
             {"$set": {
@@ -811,17 +781,11 @@ HAUPTPUNKTE:
                 "page_count": page_count,
                 "original_language": original_language,
                 "extracted_text": extracted_text,
-                "summary": summary.strip(),
+                "summary": None,  # No auto-summary
                 "structured_content": structured_content,
                 "processed_at": datetime.now(timezone.utc).isoformat()
             }}
         )
-        
-        # Clean up temp file
-        try:
-            os.remove(file_path)
-        except:
-            pass
         
         logger.info(f"Document {document_id} processed successfully")
         
