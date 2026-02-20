@@ -332,7 +332,7 @@ const UserManagement = () => {
                             size="sm"
                             onClick={() => handleToggleBlock(user)}
                             disabled={user.user_id === currentUser?.user_id}
-                            className={user.is_blocked ? "text-emerald-600 border-emerald-300" : "text-red-600"}
+                            className={user.is_blocked ? "text-emerald-600 border-emerald-300" : "text-amber-600"}
                             data-testid={`block-user-${user.user_id}`}
                           >
                             {user.is_blocked ? (
@@ -346,6 +346,16 @@ const UserManagement = () => {
                                 Sperren
                               </>
                             )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setDeleteDialog({ open: true, user })}
+                            disabled={user.user_id === currentUser?.user_id}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            data-testid={`delete-user-${user.user_id}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
                       </TableCell>
