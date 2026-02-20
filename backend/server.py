@@ -228,6 +228,15 @@ async def create_session(request: Request, response: Response):
     
     auth_data = auth_response.json()
     
+    # Check if email domain is allowed
+    email = auth_data.get("email", "")
+    email_domain = email.split("@")[-1] if "@" in email else ""
+    if email_domain not in ALLOWED_DOMAINS:
+        raise HTTPException(
+            status_code=403, 
+            detail=f"Zugang nur für Mitarbeiter von CANUSA und CU-Travel. Bitte verwenden Sie Ihre @canusa.de oder @cu-travel.com E-Mail-Adresse."
+        )
+    
     # Create or update user
     user_id = f"user_{uuid.uuid4().hex[:12]}"
     existing_user = await db.users.find_one({"email": auth_data["email"]}, {"_id": 0})
@@ -249,6 +258,7 @@ async def create_session(request: Request, response: Response):
             "name": auth_data["name"],
             "picture": auth_data.get("picture"),
             "role": "editor",
+            "recently_viewed": [],
             "created_at": datetime.now(timezone.utc).isoformat()
         }
         await db.users.insert_one(new_user)
