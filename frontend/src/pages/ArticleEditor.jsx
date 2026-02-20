@@ -324,10 +324,11 @@ const ArticleEditor = () => {
       const checkStatus = async () => {
         const docResponse = await axios.get(`${API}/documents/${response.data.document_id}`);
         if (docResponse.data.status === "completed") {
-          insertPdfContent(docResponse.data);
+          // Show preview dialog instead of directly inserting
+          setPdfDialog({ open: true, preview: docResponse.data });
           setUploadingPdf(false);
         } else if (docResponse.data.status === "failed") {
-          toast.error("PDF-Verarbeitung fehlgeschlagen");
+          toast.error("PDF-Verarbeitung fehlgeschlagen: " + (docResponse.data.error_message || ""));
           setUploadingPdf(false);
         } else {
           setTimeout(checkStatus, 2000);
