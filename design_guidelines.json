@@ -1,0 +1,170 @@
+{
+  "identity": {
+    "name": "Smart-Knowledge-Nexus",
+    "persona": "The Architect of Truth",
+    "vibe": "Clear, Intelligent, Structured, Calm",
+    "design_principle": "Form follows Data. High density without clutter. Interaction speed is the primary metric."
+  },
+  "typography": {
+    "primary_font": "Plus Jakarta Sans",
+    "secondary_font": "Inter",
+    "mono_font": "JetBrains Mono",
+    "heading_styles": {
+      "h1": "text-4xl font-bold tracking-tight text-foreground scroll-m-20 lg:text-5xl",
+      "h2": "text-3xl font-semibold tracking-tight first:mt-0 scroll-m-20",
+      "h3": "text-2xl font-semibold tracking-tight scroll-m-20",
+      "h4": "text-xl font-semibold tracking-tight scroll-m-20"
+    },
+    "body_styles": {
+      "base": "text-base leading-7 [&:not(:first-child)]:mt-6",
+      "large": "text-lg font-semibold text-foreground",
+      "small": "text-sm font-medium leading-none",
+      "muted": "text-sm text-muted-foreground"
+    },
+    "installation": {
+      "google_fonts": "https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=JetBrains+Mono:wght@100..800&family=Plus+Jakarta+Sans:wght@200..800&display=swap"
+    }
+  },
+  "colors": {
+    "theme": "light",
+    "palette": {
+      "background": "#F8FAFC", 
+      "foreground": "#0F172A",
+      "card": "#FFFFFF",
+      "card_foreground": "#0F172A",
+      "popover": "#FFFFFF",
+      "popover_foreground": "#0F172A",
+      "primary": "#0F172A",
+      "primary_foreground": "#F8FAFC",
+      "secondary": "#F1F5F9",
+      "secondary_foreground": "#0F172A",
+      "muted": "#F1F5F9",
+      "muted_foreground": "#64748B",
+      "accent": "#F1F5F9",
+      "accent_foreground": "#0F172A",
+      "destructive": "#EF4444",
+      "destructive_foreground": "#F8FAFC",
+      "border": "#E2E8F0",
+      "input": "#E2E8F0",
+      "ring": "#0F172A",
+      "brand": {
+        "obsidian": "#0F172A",
+        "indigo": "#6366F1",
+        "emerald": "#10B981",
+        "amber": "#F59E0B"
+      }
+    },
+    "semantic": {
+      "ai_glow": "0 0 20px -5px rgba(99, 102, 241, 0.4)",
+      "status_draft": "bg-slate-100 text-slate-700 border-slate-200",
+      "status_review": "bg-amber-50 text-amber-700 border-amber-200",
+      "status_published": "bg-emerald-50 text-emerald-700 border-emerald-200"
+    }
+  },
+  "layout_strategies": {
+    "dashboard": {
+      "type": "bento_grid_mode_b",
+      "grid_cols": "grid-cols-1 md:grid-cols-4 lg:grid-cols-4",
+      "gap": "gap-6",
+      "padding": "p-8",
+      "rule": "Every pixel utilized. High density."
+    },
+    "knowledge_article": {
+      "wrapper": "max-w-4xl mx-auto py-10",
+      "content_width": "prose prose-slate dark:prose-invert lg:prose-xl",
+      "sidebar": "hidden lg:block w-64 shrink-0 border-r bg-muted/30"
+    },
+    "search_center": {
+      "container": "relative w-full max-w-2xl mx-auto",
+      "input_height": "h-14",
+      "results_overlay": "absolute top-full left-0 right-0 mt-2 bg-popover border rounded-lg shadow-xl z-50 overflow-hidden"
+    }
+  },
+  "components": {
+    "buttons": {
+      "default": "rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
+      "variants": {
+        "default": "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm",
+        "outline": "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+        "ghost": "hover:bg-accent hover:text-accent-foreground",
+        "link": "text-primary underline-offset-4 hover:underline"
+      }
+    },
+    "cards": {
+      "base": "rounded-lg border bg-card text-card-foreground shadow-sm",
+      "hover_effect": "transition-all duration-200 hover:shadow-md hover:-translate-y-0.5",
+      "header": "flex flex-col space-y-1.5 p-6",
+      "content": "p-6 pt-0"
+    },
+    "inputs": {
+      "base": "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+    },
+    "navigation": {
+      "sidebar": "h-screen w-64 border-r bg-muted/10 hidden lg:flex flex-col",
+      "sidebar_item": "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary hover:bg-muted"
+    }
+  },
+  "visual_enhancers": {
+    "glassmorphism": "bg-white/70 backdrop-blur-xl border-b border-white/20",
+    "shadows": {
+      "subtle": "shadow-[0_2px_10px_rgba(0,0,0,0.03)]",
+      "float": "shadow-[0_10px_30px_rgba(0,0,0,0.08)]"
+    },
+    "borders": {
+      "subtle": "border-slate-200",
+      "active": "border-indigo-500"
+    }
+  },
+  "motion": {
+    "page_transition": {
+      "initial": { "opacity": 0, "y": 20 },
+      "animate": { "opacity": 1, "y": 0 },
+      "exit": { "opacity": 0, "y": 20 },
+      "transition": { "duration": 0.3, "ease": "easeOut" }
+    },
+    "hover_scale": {
+      "whileHover": { "scale": 1.02 }
+    }
+  },
+  "assets": {
+    "images": [
+      {
+        "category": "login_background",
+        "url": "https://images.unsplash.com/photo-1759020687582-7d8e58527cba?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzZ8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBvZmZpY2UlMjBtaW5pbWFsaXN0JTIwd29ya3NwYWNlJTIwYWJzdHJhY3QlMjB0ZWNobm9sb2d5fGVufDB8fHx8MTc3MTU3ODE0Nnww&ixlib=rb-4.1.0&q=85",
+        "description": "Modern glass building against a bright sky, suitable for login page background"
+      },
+      {
+        "category": "dashboard_empty_state",
+        "url": "https://images.pexels.com/photos/35428064/pexels-photo-35428064.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "description": "Clean workspace for empty states or dashboard placeholder"
+      }
+    ],
+    "icons": "lucide-react"
+  },
+  "libraries": {
+    "charts": "recharts",
+    "maps": "react-map-gl",
+    "3d": "none",
+    "animation": "framer-motion",
+    "toast": "sonner",
+    "dates": "date-fns"
+  },
+  "universal_guidelines": [
+    "Do NOT use gradients for text.",
+    "Do NOT center align the app container.",
+    "Use 2-3x more spacing than typical designs.",
+    "Every interaction needs micro-animations.",
+    "Avoid 'AI slop' aesthetic - no generic centered layouts.",
+    "Support German language word lengths (avoid fixed widths).",
+    "Use 'sonner' for toast notifications."
+  ],
+  "instructions_to_main_agent": [
+    "Implement the 'Smart-Knowledge-Nexus' with a focus on 'Clean Enterprise' aesthetics.",
+    "Use the provided colors to override default Shadcn/Tailwind values.",
+    "Ensure the PDF ingestion flow has a clear, step-by-step UI.",
+    "The Search Interface is the heart of the app - make it prominent and fast.",
+    "Use the 'Bento Grid' layout for the dashboard overview.",
+    "All text inputs must have a clear focus state with the Brand Indigo color.",
+    "For the Tree Navigation, use a recursive component strategy."
+  ]
+}
