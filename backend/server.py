@@ -823,17 +823,37 @@ async def delete_document(document_id: str, user: User = Depends(get_current_use
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
     
-    # Delete temp file if exists
-    if doc.get("temp_path"):
+    # Delete PDF file if exists
+    file_path = doc.get("file_path") or doc.get("temp_path")
+    if file_path:
         try:
             import os
-            if os.path.exists(doc["temp_path"]):
-                os.remove(doc["temp_path"])
+            if os.path.exists(file_path):
+                os.remove(file_path)
         except:
             pass
     
     await db.documents.delete_one({"document_id": document_id})
     return {"message": "Document deleted"}
+
+@api_router.get("/documents/{document_id}/pdf")
+async def get_document_pdf(document_id: str, user: User = Depends(get_current_user)):
+    """Get PDF file for embedding/viewing"""
+    from fastapi.responses import FileResponse
+    
+    doc = await db.documents.find_one({"document_id": document_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    file_path = doc.get("file_path")
+    if not file_path or not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="PDF file not found")
+    
+    return FileResponse(
+        file_path,
+        media_type="application/pdf",
+        filename=doc.get("filename", "document.pdf")
+    )
 
 @api_router.post("/documents/{document_id}/create-article")
 async def create_article_from_document(
