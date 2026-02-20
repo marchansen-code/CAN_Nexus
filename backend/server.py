@@ -201,6 +201,10 @@ async def get_current_user(request: Request) -> User:
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     
+    # Check if user is blocked
+    if user.get("is_blocked", False):
+        raise HTTPException(status_code=403, detail="Your account has been blocked. Please contact an administrator.")
+    
     return User(**user)
 
 async def get_optional_user(request: Request) -> Optional[User]:
