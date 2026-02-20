@@ -33,6 +33,7 @@ const navItems = [
   { path: "/articles", icon: FileText, label: "Artikel" },
   { path: "/documents", icon: Upload, label: "Dokumente" },
   { path: "/categories", icon: FolderTree, label: "Kategorien" },
+  { path: "/users", icon: Users, label: "Benutzer" },
   { path: "/settings", icon: Settings, label: "Einstellungen" },
 ];
 
