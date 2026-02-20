@@ -132,6 +132,27 @@ const ArticleEditor = () => {
   const [isFavorite, setIsFavorite] = useState(false);
   const [generatingSummary, setGeneratingSummary] = useState(false);
 
+  // Image upload handler for the editor
+  const handleImageUpload = useCallback(async (file) => {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const response = await axios.post(`${API}/images/upload`, formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      
+      // Return the full URL for the image
+      const imageUrl = `${API}/images/${response.data.image_id}`;
+      toast.success("Bild hochgeladen");
+      return imageUrl;
+    } catch (error) {
+      console.error("Image upload failed:", error);
+      toast.error(error.response?.data?.detail || "Bild-Upload fehlgeschlagen");
+      return null;
+    }
+  }, []);
+
   // Presence heartbeat
   useEffect(() => {
     if (isNew || !articleId) return;
