@@ -769,54 +769,166 @@ const ArticleEditor = () => {
       </div>
 
       {/* PDF Import Dialog */}
-      <Dialog open={pdfDialog.open} onOpenChange={(open) => setPdfDialog({ open })}>
-        <DialogContent className="max-w-2xl">
+      <Dialog open={pdfDialog.open} onOpenChange={(open) => setPdfDialog({ open, preview: null })}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle>PDF importieren</DialogTitle>
+            <DialogTitle>
+              {pdfDialog.preview ? `PDF Vorschau: ${pdfDialog.preview.filename}` : "PDF importieren"}
+            </DialogTitle>
             <DialogDescription>
-              Laden Sie ein PDF hoch. Inhalt, Tabellen, Struktur und Bilder werden automatisch extrahiert.
+              {pdfDialog.preview 
+                ? "Überprüfen Sie die extrahierten Inhalte und übernehmen Sie sie in den Artikel."
+                : "Laden Sie ein PDF hoch. Inhalt, Tabellen und Struktur werden automatisch extrahiert."
+              }
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-6">
-            {/* Upload new PDF */}
-            <div className="border-2 border-dashed rounded-lg p-6 text-center">
-              <Upload className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-              <p className="font-medium mb-2">Neues PDF hochladen</p>
-              <p className="text-sm text-muted-foreground mb-4">
-                Das PDF wird analysiert und Inhalt, Tabellen und Struktur werden übernommen.
-              </p>
-              <label>
-                <input
-                  type="file"
-                  accept=".pdf"
-                  onChange={handlePdfUpload}
-                  className="hidden"
-                  disabled={uploadingPdf}
-                />
-                <Button asChild disabled={uploadingPdf}>
-                  <span>
-                    {uploadingPdf ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Wird verarbeitet...
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="w-4 h-4 mr-2" />
-                        PDF auswählen
-                      </>
-                    )}
-                  </span>
-                </Button>
-              </label>
+          {!pdfDialog.preview ? (
+            // Upload View
+            <div className="space-y-6">
+              <div className="border-2 border-dashed rounded-lg p-8 text-center">
+                <Upload className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <p className="font-medium mb-2">PDF hochladen</p>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Das PDF wird analysiert und Inhalt, Tabellen und Struktur werden extrahiert.
+                </p>
+                <label>
+                  <input
+                    type="file"
+                    accept=".pdf"
+                    onChange={handlePdfUpload}
+                    className="hidden"
+                    disabled={uploadingPdf}
+                  />
+                  <Button asChild disabled={uploadingPdf}>
+                    <span>
+                      {uploadingPdf ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Wird verarbeitet...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-4 h-4 mr-2" />
+                          PDF auswählen
+                        </>
+                      )}
+                    </span>
+                  </Button>
+                </label>
+              </div>
             </div>
-          </div>
+          ) : (
+            // Preview View
+            <div className="flex-1 overflow-auto space-y-4">
+              {/* Summary Section - Separate */}
+              {pdfDialog.preview.summary && (
+                <div className="bg-gradient-to-r from-red-50 to-amber-50 border border-red-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-semibold text-canusa-dark-blue flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-canusa-red" />
+                      KI-Zusammenfassung
+                    </h4>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setArticle(prev => ({ ...prev, summary: pdfDialog.preview.summary }));
+                        toast.success("Zusammenfassung übernommen");
+                      }}
+                      className="h-7 text-xs"
+                    >
+                      In Zusammenfassungsfeld übernehmen
+                    </Button>
+                  </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {pdfDialog.preview.summary}
+                  </p>
+                </div>
+              )}
+
+              {/* Document Info */}
+              <div className="flex gap-4 text-sm text-muted-foreground">
+                <span>{pdfDialog.preview.page_count} Seiten</span>
+                <span>Sprache: {pdfDialog.preview.original_language || "Deutsch"}</span>
+                {pdfDialog.preview.structured_content?.tables?.length > 0 && (
+                  <span>{pdfDialog.preview.structured_content.tables.length} Tabelle(n)</span>
+                )}
+              </div>
+
+              {/* Headlines Preview */}
+              {pdfDialog.preview.structured_content?.headlines?.length > 0 && (
+                <div className="border rounded-lg p-3">
+                  <h4 className="font-medium text-sm mb-2">Erkannte Überschriften</h4>
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    {pdfDialog.preview.structured_content.headlines.slice(0, 5).map((h, i) => (
+                      <li key={i} className="flex items-center gap-2">
+                        <ChevronRight className="w-3 h-3" />
+                        {h}
+                      </li>
+                    ))}
+                    {pdfDialog.preview.structured_content.headlines.length > 5 && (
+                      <li className="text-xs">... und {pdfDialog.preview.structured_content.headlines.length - 5} weitere</li>
+                    )}
+                  </ul>
+                </div>
+              )}
+
+              {/* Bullet Points Preview */}
+              {pdfDialog.preview.structured_content?.bulletpoints?.length > 0 && (
+                <div className="border rounded-lg p-3">
+                  <h4 className="font-medium text-sm mb-2">Hauptpunkte</h4>
+                  <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+                    {pdfDialog.preview.structured_content.bulletpoints.slice(0, 5).map((p, i) => (
+                      <li key={i}>{p}</li>
+                    ))}
+                    {pdfDialog.preview.structured_content.bulletpoints.length > 5 && (
+                      <li className="text-xs list-none">... und {pdfDialog.preview.structured_content.bulletpoints.length - 5} weitere</li>
+                    )}
+                  </ul>
+                </div>
+              )}
+
+              {/* Tables Preview */}
+              {pdfDialog.preview.structured_content?.tables?.length > 0 && (
+                <div className="border rounded-lg p-3">
+                  <h4 className="font-medium text-sm mb-2">Tabellen</h4>
+                  <p className="text-sm text-muted-foreground">
+                    {pdfDialog.preview.structured_content.tables.length} Tabelle(n) werden übernommen
+                  </p>
+                </div>
+              )}
+
+              {/* Text Preview */}
+              {pdfDialog.preview.extracted_text && (
+                <div className="border rounded-lg p-3">
+                  <h4 className="font-medium text-sm mb-2">Textvorschau</h4>
+                  <p className="text-sm text-muted-foreground line-clamp-4">
+                    {pdfDialog.preview.extracted_text.substring(0, 500)}...
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
           
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPdfDialog({ open: false })}>
-              Abbrechen
-            </Button>
+          <DialogFooter className="mt-4">
+            {pdfDialog.preview ? (
+              <>
+                <Button variant="outline" onClick={() => setPdfDialog({ open: true, preview: null })}>
+                  Anderes PDF
+                </Button>
+                <Button 
+                  onClick={() => insertPdfContent(pdfDialog.preview, false)}
+                  className="bg-canusa-red hover:bg-red-600"
+                >
+                  Inhalt übernehmen
+                </Button>
+              </>
+            ) : (
+              <Button variant="outline" onClick={() => setPdfDialog({ open: false, preview: null })}>
+                Abbrechen
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
