@@ -9,6 +9,7 @@ import Landing from "@/pages/Landing";
 import Dashboard from "@/pages/Dashboard";
 import Search from "@/pages/Search";
 import Articles from "@/pages/Articles";
+import ArticleView from "@/pages/ArticleView";
 import ArticleEditor from "@/pages/ArticleEditor";
 import Documents from "@/pages/Documents";
 import Categories from "@/pages/Categories";
