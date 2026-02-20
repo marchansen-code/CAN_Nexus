@@ -25,17 +25,21 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
-const navItems = [
-  { path: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { path: "/search", icon: Search, label: "KI-Suche" },
-  { path: "/articles", icon: FileText, label: "Artikel" },
-  { path: "/documents", icon: Upload, label: "Dokumente" },
-  { path: "/categories", icon: FolderTree, label: "Kategorien" },
-  { path: "/users", icon: Users, label: "Benutzer" },
-  { path: "/settings", icon: Settings, label: "Einstellungen" },
+// Navigation items with role-based visibility
+const allNavItems = [
+  { path: "/dashboard", icon: LayoutDashboard, label: "Dashboard", roles: ["admin", "editor", "viewer"] },
+  { path: "/search", icon: Search, label: "KI-Suche", roles: ["admin", "editor", "viewer"] },
+  { path: "/articles", icon: FileText, label: "Artikel", roles: ["admin", "editor", "viewer"] },
+  { path: "/documents", icon: Upload, label: "Dokumente", roles: ["admin", "editor"] },
+  { path: "/categories", icon: FolderTree, label: "Kategorien", roles: ["admin", "editor"] },
+  { path: "/users", icon: Users, label: "Benutzer", roles: ["admin"] },
+  { path: "/settings", icon: Settings, label: "Einstellungen", roles: ["admin"] },
 ];
 
-const Sidebar = ({ className = "", onNavigate }) => {
+const Sidebar = ({ className = "", onNavigate, userRole }) => {
+  // Filter nav items based on user role
+  const navItems = allNavItems.filter(item => item.roles.includes(userRole || "viewer"));
+
   return (
     <aside className={`h-screen w-64 border-r bg-card flex flex-col ${className}`}>
       {/* Logo */}
@@ -109,6 +113,15 @@ const Header = () => {
       .slice(0, 2) || "?";
   };
 
+  const getRoleLabel = (role) => {
+    const labels = {
+      admin: "Administrator",
+      editor: "Editor",
+      viewer: "Betrachter"
+    };
+    return labels[role] || "Betrachter";
+  };
+
   return (
     <header className="h-16 border-b bg-white/80 backdrop-blur-xl sticky top-0 z-40">
       <div className="h-full px-4 lg:px-8 flex items-center justify-between">
@@ -121,7 +134,7 @@ const Header = () => {
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="p-0 w-64">
-              <Sidebar onNavigate={() => setMobileOpen(false)} />
+              <Sidebar onNavigate={() => setMobileOpen(false)} userRole={user?.role} />
             </SheetContent>
           </Sheet>
         </div>
@@ -145,20 +158,28 @@ const Header = () => {
                   {getInitials(user?.name)}
                 </AvatarFallback>
               </Avatar>
-              <span className="hidden sm:inline text-sm font-medium">{user?.name}</span>
+              <div className="hidden sm:block text-left">
+                <span className="text-sm font-medium block">{user?.name}</span>
+                <span className="text-xs text-muted-foreground">{getRoleLabel(user?.role)}</span>
+              </div>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <div className="px-2 py-1.5">
               <p className="text-sm font-medium">{user?.name}</p>
               <p className="text-xs text-muted-foreground">{user?.email}</p>
+              <p className="text-xs text-red-600 mt-1">{getRoleLabel(user?.role)}</p>
             </div>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => navigate("/settings")}>
-              <Settings className="w-4 h-4 mr-2" />
-              Einstellungen
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
+            {user?.role === "admin" && (
+              <>
+                <DropdownMenuItem onClick={() => navigate("/settings")}>
+                  <Settings className="w-4 h-4 mr-2" />
+                  Einstellungen
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            )}
             <DropdownMenuItem onClick={handleLogout} className="text-red-600" data-testid="logout-btn">
               <LogOut className="w-4 h-4 mr-2" />
               Abmelden
@@ -171,10 +192,12 @@ const Header = () => {
 };
 
 const Layout = ({ children }) => {
+  const { user } = useContext(AuthContext);
+  
   return (
     <div className="min-h-screen bg-background flex">
       {/* Desktop Sidebar */}
-      <Sidebar className="hidden lg:flex" />
+      <Sidebar className="hidden lg:flex" userRole={user?.role} />
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-h-screen">
