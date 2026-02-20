@@ -125,12 +125,44 @@ class BackendAPITester:
         success, user_data = self.run_test("Get Current User", "GET", "auth/me", 200)
         if success and user_data.get("user_id"):
             self.user_id = user_data["user_id"]
-            print(f"   Authenticated as: {user_data.get('name', 'Unknown')}")
+            print(f"   Authenticated as: {user_data.get('name', 'Unknown')} ({user_data.get('role', 'unknown')})")
+        
+        # Test USER MANAGEMENT endpoints specifically
+        print("\n--- USER MANAGEMENT TESTS ---")
+        success, users_data = self.run_test("Get All Users", "GET", "users", 200)
+        
+        if success and users_data:
+            print(f"   Found {len(users_data)} users in system")
+            
+            # Test individual user fetch
+            if len(users_data) > 0:
+                test_user = users_data[0]
+                self.run_test("Get Single User", "GET", f"users/{test_user['user_id']}", 200)
+                
+                # Test role update (if admin and has other users)
+                if user_data.get('role') == 'admin' and len(users_data) > 1:
+                    target_user = None
+                    for u in users_data:
+                        if u.get('user_id') != user_data.get('user_id'):
+                            target_user = u
+                            break
+                    
+                    if target_user:
+                        original_role = target_user.get('role', 'viewer')
+                        new_role = 'editor' if original_role == 'viewer' else 'viewer'
+                        
+                        role_data = {"role": new_role}
+                        self.run_test(f"Update User Role to {new_role}", "PUT", f"users/{target_user['user_id']}/role", 200, role_data)
+                        
+                        # Revert back
+                        revert_data = {"role": original_role}
+                        self.run_test(f"Revert User Role to {original_role}", "PUT", f"users/{target_user['user_id']}/role", 200, revert_data)
         
         # Test stats
         self.run_test("Dashboard Stats", "GET", "stats", 200)
         
         # Test categories CRUD
+        print("\n--- CATEGORY TESTS ---")
         category_data = {"name": "Test Category", "description": "Test category description"}
         success, category = self.run_test("Create Category", "POST", "categories", 200, category_data)
         
@@ -146,13 +178,15 @@ class BackendAPITester:
             self.run_test("Delete Category", "DELETE", f"categories/{category_id}", 200)
         
         # Test articles CRUD
+        print("\n--- ARTICLE TESTS ---")
         article_data = {
-            "title": "Test Article",
-            "content": "This is a test article content.",
-            "summary": "Test summary",
-            "status": "draft"
+            "title": "Test Article with Rich Content",
+            "content": "<h1>Test Heading</h1><p>This is a <strong>bold</strong> and <em>italic</em> test article.</p><ul><li>Bullet point 1</li><li>Bullet point 2</li></ul>",
+            "summary": "Test summary with rich content",
+            "status": "draft",
+            "tags": ["test", "rich-text"]
         }
-        success, article = self.run_test("Create Article", "POST", "articles", 200, article_data)
+        success, article = self.run_test("Create Rich Text Article", "POST", "articles", 200, article_data)
         
         if success and article.get("article_id"):
             article_id = article["article_id"]
@@ -160,17 +194,19 @@ class BackendAPITester:
             self.run_test("Get Single Article", "GET", f"articles/{article_id}", 200)
             
             # Update article
-            update_data = {"title": "Updated Test Article", "status": "review"}
+            update_data = {"title": "Updated Rich Text Article", "status": "review"}
             self.run_test("Update Article", "PUT", f"articles/{article_id}", 200, update_data)
             
             # Delete article
             self.run_test("Delete Article", "DELETE", f"articles/{article_id}", 200)
         
         # Test documents endpoints
+        print("\n--- DOCUMENT TESTS ---")
         self.run_test("Get Documents", "GET", "documents", 200)
         
         # Test search functionality
-        search_data = {"query": "test", "top_k": 5}
+        print("\n--- SEARCH TESTS ---")
+        search_data = {"query": "test content", "top_k": 5}
         self.run_test("Semantic Search", "POST", "search", 200, search_data)
 
     def run_all_tests(self):
