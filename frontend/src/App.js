@@ -5,6 +5,7 @@ import "@/App.css";
 
 // Components
 import { Toaster } from "@/components/ui/sonner";
+import { ThemeProvider } from "@/components/ThemeProvider";
 import Landing from "@/pages/Landing";
 import Dashboard from "@/pages/Dashboard";
 import Search from "@/pages/Search";
