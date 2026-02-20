@@ -620,6 +620,7 @@ const ArticleEditor = () => {
                   content={article.content}
                   onChange={(html) => setArticle(prev => ({ ...prev, content: html }))}
                   placeholder="Artikelinhalt eingeben... Nutzen Sie die Werkzeugleiste für Formatierungen, Tabellen und Bilder."
+                  onImageUpload={handleImageUpload}
                   data-testid="article-content-editor"
                 />
                 <p className="text-xs text-muted-foreground">
