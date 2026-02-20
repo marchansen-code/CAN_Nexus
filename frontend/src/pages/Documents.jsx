@@ -77,6 +77,7 @@ const StatusBadge = ({ status }) => {
 
 const Documents = () => {
   const navigate = useNavigate();
+  const { user } = useContext(AuthContext);
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -85,6 +86,9 @@ const Documents = () => {
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [createArticleDialog, setCreateArticleDialog] = useState({ open: false, doc: null });
   const [articleTitle, setArticleTitle] = useState("");
+  const [deleteDialog, setDeleteDialog] = useState({ open: false, doc: null });
+
+  const isAdmin = user?.role === "admin";
 
   const fetchDocuments = useCallback(async () => {
     try {
