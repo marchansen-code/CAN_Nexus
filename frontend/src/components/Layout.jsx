@@ -98,6 +98,7 @@ const Sidebar = ({ className = "", onNavigate, userRole }) => {
 const Header = () => {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
+  const { theme, setTheme, resolvedTheme } = useTheme();
   const [mobileOpen, setMobileOpen] = React.useState(false);
 
   const handleLogout = async () => {
@@ -109,6 +110,20 @@ const Header = () => {
       console.error("Logout failed:", error);
       navigate("/", { replace: true });
     }
+  };
+
+  const cycleTheme = () => {
+    const themes = ['light', 'dark', 'system'];
+    const currentIndex = themes.indexOf(theme);
+    const nextTheme = themes[(currentIndex + 1) % themes.length];
+    setTheme(nextTheme);
+    toast.success(`Theme: ${nextTheme === 'system' ? 'Automatisch' : nextTheme === 'dark' ? 'Dunkel' : 'Hell'}`);
+  };
+
+  const getThemeIcon = () => {
+    if (theme === 'system') return <Monitor className="w-4 h-4" />;
+    if (theme === 'dark') return <Moon className="w-4 h-4" />;
+    return <Sun className="w-4 h-4" />;
   };
 
   const getInitials = (name) => {
