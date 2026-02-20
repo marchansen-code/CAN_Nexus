@@ -264,7 +264,7 @@ const UserManagement = () => {
               </TableHeader>
               <TableBody>
                 {filteredUsers.map((user) => (
-                  <TableRow key={user.user_id} data-testid={`user-row-${user.user_id}`}>
+                  <TableRow key={user.user_id} data-testid={`user-row-${user.user_id}`} className={user.is_blocked ? "opacity-60 bg-red-50" : ""}>
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Avatar className="w-8 h-8">
@@ -276,6 +276,9 @@ const UserManagement = () => {
                         <span className="font-medium">{user.name}</span>
                         {user.user_id === currentUser?.user_id && (
                           <Badge variant="secondary" className="text-xs">Sie</Badge>
+                        )}
+                        {user.is_blocked && (
+                          <Badge variant="destructive" className="text-xs">Gesperrt</Badge>
                         )}
                       </div>
                     </TableCell>
@@ -296,16 +299,38 @@ const UserManagement = () => {
                     </TableCell>
                     {isAdmin && (
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleOpenEdit(user)}
-                          disabled={user.user_id === currentUser?.user_id}
-                          data-testid={`edit-user-${user.user_id}`}
-                        >
-                          <Shield className="w-4 h-4 mr-2" />
-                          Rolle ändern
-                        </Button>
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleOpenEdit(user)}
+                            disabled={user.user_id === currentUser?.user_id}
+                            data-testid={`edit-user-${user.user_id}`}
+                          >
+                            <Shield className="w-4 h-4 mr-2" />
+                            Rolle
+                          </Button>
+                          <Button
+                            variant={user.is_blocked ? "outline" : "ghost"}
+                            size="sm"
+                            onClick={() => handleToggleBlock(user)}
+                            disabled={user.user_id === currentUser?.user_id}
+                            className={user.is_blocked ? "text-emerald-600 border-emerald-300" : "text-red-600"}
+                            data-testid={`block-user-${user.user_id}`}
+                          >
+                            {user.is_blocked ? (
+                              <>
+                                <UserX className="w-4 h-4 mr-2" />
+                                Entsperren
+                              </>
+                            ) : (
+                              <>
+                                <Ban className="w-4 h-4 mr-2" />
+                                Sperren
+                              </>
+                            )}
+                          </Button>
+                        </div>
                       </TableCell>
                     )}
                   </TableRow>
