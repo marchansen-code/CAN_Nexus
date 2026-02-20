@@ -932,6 +932,26 @@ async def get_stats(user: User = Depends(get_current_user)):
     # Get recent articles
     recent_articles = await db.articles.find({}, {"_id": 0}).sort("updated_at", -1).limit(5).to_list(5)
     
+    # Get favorite articles for current user
+    favorite_articles = await db.articles.find(
+        {"favorited_by": user.user_id},
+        {"_id": 0}
+    ).sort("updated_at", -1).limit(5).to_list(5)
+    
+    # Get recently viewed articles
+    user_data = await db.users.find_one({"user_id": user.user_id}, {"_id": 0, "recently_viewed": 1})
+    recently_viewed_ids = user_data.get("recently_viewed", [])[:10] if user_data else []
+    recently_viewed = []
+    if recently_viewed_ids:
+        for article_id in recently_viewed_ids:
+            article = await db.articles.find_one({"article_id": article_id}, {"_id": 0})
+            if article:
+                recently_viewed.append(article)
+    
+    # User stats
+    user_articles_count = await db.articles.count_documents({"created_by": user.user_id})
+    user_documents_count = await db.documents.count_documents({"uploaded_by": user.user_id})
+    
     return {
         "total_articles": total_articles,
         "published_articles": published_articles,
@@ -940,8 +960,103 @@ async def get_stats(user: User = Depends(get_current_user)):
         "total_categories": total_categories,
         "total_documents": total_documents,
         "pending_documents": pending_documents,
-        "recent_articles": recent_articles
+        "recent_articles": recent_articles,
+        "favorite_articles": favorite_articles,
+        "recently_viewed": recently_viewed,
+        "user_stats": {
+            "articles_created": user_articles_count,
+            "documents_uploaded": user_documents_count
+        }
     }
+
+# ==================== FAVORITES ====================
+
+@api_router.post("/articles/{article_id}/favorite")
+async def toggle_favorite(article_id: str, user: User = Depends(get_current_user)):
+    """Toggle favorite status for an article"""
+    article = await db.articles.find_one({"article_id": article_id}, {"_id": 0})
+    if not article:
+        raise HTTPException(status_code=404, detail="Article not found")
+    
+    favorited_by = article.get("favorited_by", [])
+    
+    if user.user_id in favorited_by:
+        # Remove from favorites
+        await db.articles.update_one(
+            {"article_id": article_id},
+            {"$pull": {"favorited_by": user.user_id}}
+        )
+        return {"favorited": False, "message": "Aus Favoriten entfernt"}
+    else:
+        # Add to favorites
+        await db.articles.update_one(
+            {"article_id": article_id},
+            {"$addToSet": {"favorited_by": user.user_id}}
+        )
+        return {"favorited": True, "message": "Zu Favoriten hinzugefügt"}
+
+@api_router.get("/favorites")
+async def get_favorites(user: User = Depends(get_current_user)):
+    """Get all favorite articles for current user"""
+    articles = await db.articles.find(
+        {"favorited_by": user.user_id},
+        {"_id": 0}
+    ).sort("updated_at", -1).to_list(100)
+    return articles
+
+# ==================== RECENTLY VIEWED ====================
+
+@api_router.post("/articles/{article_id}/viewed")
+async def mark_as_viewed(article_id: str, user: User = Depends(get_current_user)):
+    """Mark article as viewed and update recently viewed list"""
+    # Remove if already in list, then add to front
+    await db.users.update_one(
+        {"user_id": user.user_id},
+        {"$pull": {"recently_viewed": article_id}}
+    )
+    await db.users.update_one(
+        {"user_id": user.user_id},
+        {"$push": {"recently_viewed": {"$each": [article_id], "$position": 0, "$slice": 20}}}
+    )
+    return {"message": "Marked as viewed"}
+
+# ==================== PRESENCE / ACTIVE EDITORS ====================
+
+@api_router.post("/articles/{article_id}/presence")
+async def update_presence(article_id: str, user: User = Depends(get_current_user)):
+    """Update editor presence for an article"""
+    global active_editors
+    
+    if article_id not in active_editors:
+        active_editors[article_id] = {}
+    
+    active_editors[article_id][user.user_id] = {
+        "name": user.name,
+        "picture": user.picture,
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+    
+    # Clean up old entries (older than 30 seconds)
+    cutoff = datetime.now(timezone.utc) - timedelta(seconds=30)
+    for uid in list(active_editors[article_id].keys()):
+        ts = datetime.fromisoformat(active_editors[article_id][uid]["timestamp"])
+        if ts < cutoff:
+            del active_editors[article_id][uid]
+    
+    # Return other active editors (excluding current user)
+    others = {uid: info for uid, info in active_editors[article_id].items() if uid != user.user_id}
+    
+    return {"active_editors": list(others.values())}
+
+@api_router.delete("/articles/{article_id}/presence")
+async def remove_presence(article_id: str, user: User = Depends(get_current_user)):
+    """Remove editor presence when leaving article"""
+    global active_editors
+    
+    if article_id in active_editors and user.user_id in active_editors[article_id]:
+        del active_editors[article_id][user.user_id]
+    
+    return {"message": "Presence removed"}
 
 # ==================== WIDGET API ====================
 
