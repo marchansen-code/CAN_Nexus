@@ -236,18 +236,21 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Recently Viewed */}
+        {/* Recently Viewed - Scrollable 15 items, 5 visible */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-3">
             <CardTitle className="text-lg flex items-center gap-2">
               <History className="w-5 h-5 text-blue-500" />
               Zuletzt angesehen
             </CardTitle>
+            <span className="text-xs text-muted-foreground">
+              {stats?.recently_viewed?.length || 0} Artikel
+            </span>
           </CardHeader>
           <CardContent>
             {stats?.recently_viewed?.length > 0 ? (
-              <div className="space-y-2">
-                {stats.recently_viewed.slice(0, 5).map((article) => (
+              <div className="space-y-2 max-h-[280px] overflow-y-auto pr-1 scrollbar-thin">
+                {stats.recently_viewed.map((article) => (
                   <ArticleCard
                     key={article.article_id}
                     article={article}
