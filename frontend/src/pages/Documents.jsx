@@ -166,6 +166,21 @@ const Documents = () => {
     }
   };
 
+  const handleDeleteDocument = async () => {
+    if (!deleteDialog.doc) return;
+    
+    try {
+      await axios.delete(`${API}/documents/${deleteDialog.doc.document_id}`);
+      toast.success("Dokument gelöscht");
+      setDocuments(documents.filter(d => d.document_id !== deleteDialog.doc.document_id));
+    } catch (error) {
+      console.error("Failed to delete:", error);
+      toast.error("Dokument konnte nicht gelöscht werden");
+    } finally {
+      setDeleteDialog({ open: false, doc: null });
+    }
+  };
+
   const formatDate = (dateString) => {
     if (!dateString) return "";
     const date = new Date(dateString);
