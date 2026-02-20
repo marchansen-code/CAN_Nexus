@@ -30,11 +30,17 @@ PINECONE_API_KEY = os.environ.get('PINECONE_API_KEY', '')
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
 INDEX_NAME = "knowledge-nexus"
 
+# Allowed email domains
+ALLOWED_DOMAINS = ["canusa.de", "cu-travel.com"]
+
+# Active editors tracking (in-memory, for production use Redis)
+active_editors = {}  # {article_id: {user_id: {name, timestamp}}}
+
 pc = None
 pinecone_index = None
 
 # Create the main app
-app = FastAPI(title="Smart-Knowledge-Nexus API")
+app = FastAPI(title="CANUSA Knowledge Hub API")
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
