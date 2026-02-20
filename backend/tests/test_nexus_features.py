@@ -265,13 +265,12 @@ def authenticated_session():
         db = mongo_client[db_name]
         
         # Create test user
-        from datetime import datetime, timezone, timedelta
         user_doc = {
             "user_id": test_user_id,
             "email": test_email,
             "name": "Test User",
             "role": "admin",  # Admin for full access
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "created_at": dt.now(timezone.utc).isoformat()
         }
         db.users.update_one({"email": test_email}, {"$set": user_doc}, upsert=True)
         
@@ -280,8 +279,8 @@ def authenticated_session():
             "session_id": str(uuid.uuid4()),
             "user_id": test_user_id,
             "session_token": session_token,
-            "expires_at": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "expires_at": (dt.now(timezone.utc) + timedelta(days=1)).isoformat(),
+            "created_at": dt.now(timezone.utc).isoformat()
         }
         db.user_sessions.update_one({"session_token": session_token}, {"$set": session_doc}, upsert=True)
         mongo_client.close()
