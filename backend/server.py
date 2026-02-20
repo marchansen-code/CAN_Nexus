@@ -61,6 +61,7 @@ class User(BaseModel):
     name: str
     picture: Optional[str] = None
     role: str = "editor"
+    is_blocked: bool = False  # Sperrfunktion für Admins
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class UserSession(BaseModel):
