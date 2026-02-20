@@ -174,6 +174,16 @@ const AppRouter = () => {
         element={
           <ProtectedRoute>
             <Layout>
+              <ArticleView />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/articles/:id/edit"
+        element={
+          <ProtectedRoute>
+            <Layout>
               <ArticleEditor />
             </Layout>
           </ProtectedRoute>
