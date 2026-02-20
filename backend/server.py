@@ -101,10 +101,12 @@ class Article(BaseModel):
     source_document_id: Optional[str] = None
     review_date: Optional[datetime] = None
     favorited_by: List[str] = []
+    contact_person_id: Optional[str] = None  # Ansprechpartner User ID
     created_by: str
     updated_by: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    view_count: int = 0
 
 class ArticleCreate(BaseModel):
     title: str
@@ -114,6 +116,7 @@ class ArticleCreate(BaseModel):
     status: str = "draft"
     visibility: str = "all"
     tags: List[str] = []
+    contact_person_id: Optional[str] = None
 
 class ArticleUpdate(BaseModel):
     title: Optional[str] = None
@@ -124,6 +127,7 @@ class ArticleUpdate(BaseModel):
     visibility: Optional[str] = None
     tags: Optional[List[str]] = None
     review_date: Optional[datetime] = None
+    contact_person_id: Optional[str] = None
 
 class Document(BaseModel):
     model_config = ConfigDict(extra="ignore")
