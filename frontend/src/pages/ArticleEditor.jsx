@@ -99,7 +99,10 @@ const ArticleEditor = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const { user } = useContext(AuthContext);
-  const isNew = !id || id === "new";
+  // Check if this is an edit route (/articles/:id/edit) or new
+  const isEdit = window.location.pathname.includes('/edit');
+  const articleId = isEdit ? id : (id === "new" ? null : id);
+  const isNew = !articleId;
 
   const [article, setArticle] = useState({
     title: "",
@@ -113,7 +116,6 @@ const ArticleEditor = () => {
     favorited_by: []
   });
   const [categories, setCategories] = useState([]);
-  const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [tagInput, setTagInput] = useState("");
@@ -121,10 +123,10 @@ const ArticleEditor = () => {
   const [categoryDialog, setCategoryDialog] = useState({ open: false });
   const [newCategoryName, setNewCategoryName] = useState("");
   const [newCategoryParent, setNewCategoryParent] = useState(null);
-  const [importingPdf, setImportingPdf] = useState(false);
   const [uploadingPdf, setUploadingPdf] = useState(false);
   const [activeEditors, setActiveEditors] = useState([]);
   const [isFavorite, setIsFavorite] = useState(false);
+  const [generatingSummary, setGeneratingSummary] = useState(false);
 
   // Presence heartbeat
   useEffect(() => {
