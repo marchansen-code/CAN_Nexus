@@ -815,35 +815,6 @@ const ArticleEditor = () => {
                 </Button>
               </label>
             </div>
-
-            {/* Existing documents */}
-            {documents.length > 0 && (
-              <div className="space-y-3">
-                <Label>Oder aus verarbeiteten Dokumenten wählen:</Label>
-                <div className="max-h-60 overflow-auto space-y-2">
-                  {documents.map((doc) => (
-                    <div 
-                      key={doc.document_id}
-                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 cursor-pointer"
-                      onClick={() => insertPdfContent(doc)}
-                    >
-                      <div className="flex items-center gap-3">
-                        <FileText className="w-5 h-5 text-muted-foreground" />
-                        <div>
-                          <p className="font-medium">{doc.filename}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {doc.page_count} Seiten • {doc.structured_content?.tables?.length || 0} Tabellen
-                          </p>
-                        </div>
-                      </div>
-                      <Button variant="ghost" size="sm">
-                        Einfügen
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
           
           <DialogFooter>
