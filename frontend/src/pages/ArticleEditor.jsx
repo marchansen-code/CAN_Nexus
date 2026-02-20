@@ -113,9 +113,11 @@ const ArticleEditor = () => {
     visibility: "all",
     tags: [],
     review_date: null,
-    favorited_by: []
+    favorited_by: [],
+    contact_person_id: ""
   });
   const [categories, setCategories] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [tagInput, setTagInput] = useState("");
