@@ -1179,9 +1179,9 @@ async def get_stats(user: User = Depends(get_current_user)):
         {"_id": 0}
     ).sort("updated_at", -1).limit(5).to_list(5)
     
-    # Get recently viewed articles
+    # Get recently viewed articles (15 for scrollable list)
     user_data = await db.users.find_one({"user_id": user.user_id}, {"_id": 0, "recently_viewed": 1})
-    recently_viewed_ids = user_data.get("recently_viewed", [])[:10] if user_data else []
+    recently_viewed_ids = user_data.get("recently_viewed", [])[:15] if user_data else []
     recently_viewed = []
     if recently_viewed_ids:
         for article_id in recently_viewed_ids:
