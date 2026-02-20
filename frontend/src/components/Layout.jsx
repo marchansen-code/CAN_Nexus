@@ -53,7 +53,10 @@ const Sidebar = ({ className = "", onNavigate, userRole }) => {
               e.target.style.display = 'none';
             }}
           />
-          <span className="text-sm text-muted-foreground border-l pl-2">Knowledge Hub</span>
+          <div className="border-l pl-2">
+            <span className="text-sm font-semibold text-canusa-dark-blue block">Nexus</span>
+            <span className="text-xs text-muted-foreground">The Knowledge Hub</span>
+          </div>
         </div>
       </div>
 
@@ -81,7 +84,7 @@ const Sidebar = ({ className = "", onNavigate, userRole }) => {
       {/* Footer */}
       <div className="p-4 border-t">
         <p className="text-xs text-muted-foreground text-center">
-          CANUSA Knowledge Hub v1.0
+          CANUSA Nexus v1.0
         </p>
       </div>
     </aside>
@@ -142,7 +145,7 @@ const Header = () => {
         {/* Mobile Logo */}
         <div className="lg:hidden flex items-center gap-2">
           <span className="font-bold text-red-600">CANUSA</span>
-          <span className="text-sm text-muted-foreground">Knowledge Hub</span>
+          <span className="text-sm text-muted-foreground">Nexus</span>
         </div>
 
         {/* Spacer for desktop */}
@@ -202,7 +205,7 @@ const Layout = ({ children }) => {
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-h-screen">
         <Header />
-        <main className="flex-1 p-4 lg:p-8">
+        <main className="flex-1 p-4 lg:p-6">
           {children}
         </main>
       </div>

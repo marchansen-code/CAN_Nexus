@@ -33,7 +33,7 @@ const Landing = () => {
                 </div>
                 <span className="font-bold text-xl text-canusa-dark-blue">CANUSA</span>
               </div>
-              <span className="text-sm text-muted-foreground ml-2 border-l pl-2">Knowledge Hub</span>
+              <span className="text-sm text-muted-foreground ml-2 border-l pl-2">Nexus</span>
             </div>
             <Button 
               onClick={handleLogin} 
@@ -51,8 +51,11 @@ const Landing = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-28">
           <div className="text-center max-w-3xl mx-auto">
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-canusa-dark-blue mb-6">
-              CANUSA Knowledge Hub
+              CANUSA Nexus
             </h1>
+            <p className="text-2xl font-medium text-canusa-red mb-4">
+              The Knowledge Hub
+            </p>
             <p className="text-xl text-muted-foreground mb-8">
               Internes Wissensmanagement-System für Mitarbeiter der CANUSA Touristik GmbH & Co. KG und CU-Travel.
             </p>
@@ -134,7 +137,9 @@ const Landing = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <span className="font-semibold">CANUSA Knowledge Hub</span>
+              <span className="font-semibold">CANUSA Nexus</span>
+              <span className="text-slate-400">|</span>
+              <span className="text-sm text-slate-300">The Knowledge Hub</span>
             </div>
             <p className="text-sm text-slate-300">
               Nur für Mitarbeiter von CANUSA Touristik GmbH & Co. KG und CU-Travel
