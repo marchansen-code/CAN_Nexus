@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useContext } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
-import { API } from "@/App";
+import { API, AuthContext } from "@/App";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -12,13 +12,20 @@ import {
   Tag,
   Upload,
   FileText,
-  Loader2
+  Loader2,
+  Star,
+  Users,
+  Shield,
+  Plus,
+  ChevronRight,
+  FolderTree
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Select,
   SelectContent,
@@ -40,13 +47,57 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import RichTextEditor from "@/components/RichTextEditor";
 
+// Hierarchical Category Selector
+const CategoryTree = ({ categories, selectedId, onSelect, parentId = null, level = 0 }) => {
+  const children = categories.filter(c => c.parent_id === parentId);
+  
+  if (children.length === 0) return null;
+  
+  return (
+    <div className={level > 0 ? "ml-4 border-l pl-2" : ""}>
+      {children.map((cat) => {
+        const hasChildren = categories.some(c => c.parent_id === cat.category_id);
+        const isSelected = selectedId === cat.category_id;
+        
+        return (
+          <div key={cat.category_id}>
+            <button
+              type="button"
+              onClick={() => onSelect(cat.category_id)}
+              className={`w-full text-left px-2 py-1.5 rounded text-sm hover:bg-muted transition-colors flex items-center gap-2 ${
+                isSelected ? 'bg-red-50 text-red-700 font-medium' : ''
+              }`}
+            >
+              <FolderTree className="w-4 h-4 shrink-0" />
+              <span className="truncate">{cat.name}</span>
+            </button>
+            <CategoryTree
+              categories={categories}
+              selectedId={selectedId}
+              onSelect={onSelect}
+              parentId={cat.category_id}
+              level={level + 1}
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 const ArticleEditor = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { user } = useContext(AuthContext);
   const isNew = !id || id === "new";
 
   const [article, setArticle] = useState({
@@ -55,8 +106,10 @@ const ArticleEditor = () => {
     summary: "",
     category_id: "",
     status: "draft",
+    visibility: "all",
     tags: [],
-    review_date: null
+    review_date: null,
+    favorited_by: []
   });
   const [categories, setCategories] = useState([]);
   const [documents, setDocuments] = useState([]);
@@ -64,8 +117,39 @@ const ArticleEditor = () => {
   const [saving, setSaving] = useState(false);
   const [tagInput, setTagInput] = useState("");
   const [pdfDialog, setPdfDialog] = useState({ open: false });
+  const [categoryDialog, setCategoryDialog] = useState({ open: false });
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategoryParent, setNewCategoryParent] = useState(null);
   const [importingPdf, setImportingPdf] = useState(false);
   const [uploadingPdf, setUploadingPdf] = useState(false);
+  const [activeEditors, setActiveEditors] = useState([]);
+  const [isFavorite, setIsFavorite] = useState(false);
+
+  // Presence heartbeat
+  useEffect(() => {
+    if (isNew || !id) return;
+
+    const updatePresence = async () => {
+      try {
+        const response = await axios.post(`${API}/articles/${id}/presence`);
+        setActiveEditors(response.data.active_editors || []);
+      } catch (error) {
+        console.error("Presence update failed:", error);
+      }
+    };
+
+    // Initial presence
+    updatePresence();
+
+    // Heartbeat every 10 seconds
+    const interval = setInterval(updatePresence, 10000);
+
+    // Cleanup on unmount
+    return () => {
+      clearInterval(interval);
+      axios.delete(`${API}/articles/${id}/presence`).catch(() => {});
+    };
+  }, [id, isNew]);
 
   useEffect(() => {
     fetchCategories();
@@ -100,6 +184,10 @@ const ArticleEditor = () => {
         ...response.data,
         review_date: response.data.review_date ? new Date(response.data.review_date) : null
       });
+      setIsFavorite(response.data.favorited_by?.includes(user?.user_id));
+      
+      // Mark as viewed
+      axios.post(`${API}/articles/${id}/viewed`).catch(() => {});
     } catch (error) {
       console.error("Failed to fetch article:", error);
       toast.error("Artikel konnte nicht geladen werden");
@@ -140,6 +228,19 @@ const ArticleEditor = () => {
     }
   };
 
+  const handleToggleFavorite = async () => {
+    if (isNew) return;
+    
+    try {
+      const response = await axios.post(`${API}/articles/${id}/favorite`);
+      setIsFavorite(response.data.favorited);
+      toast.success(response.data.message);
+    } catch (error) {
+      console.error("Failed to toggle favorite:", error);
+      toast.error("Fehler beim Aktualisieren der Favoriten");
+    }
+  };
+
   const handleAddTag = () => {
     if (tagInput.trim() && !article.tags.includes(tagInput.trim())) {
       setArticle(prev => ({
@@ -155,6 +256,29 @@ const ArticleEditor = () => {
       ...prev,
       tags: prev.tags.filter(t => t !== tag)
     }));
+  };
+
+  const handleCreateCategory = async () => {
+    if (!newCategoryName.trim()) {
+      toast.error("Bitte geben Sie einen Namen ein");
+      return;
+    }
+
+    try {
+      const response = await axios.post(`${API}/categories`, {
+        name: newCategoryName.trim(),
+        parent_id: newCategoryParent === "none" ? null : newCategoryParent
+      });
+      toast.success("Kategorie erstellt");
+      fetchCategories();
+      setArticle(prev => ({ ...prev, category_id: response.data.category_id }));
+      setCategoryDialog({ open: false });
+      setNewCategoryName("");
+      setNewCategoryParent(null);
+    } catch (error) {
+      console.error("Failed to create category:", error);
+      toast.error("Kategorie konnte nicht erstellt werden");
+    }
   };
 
   const handlePdfUpload = async (event) => {
@@ -179,7 +303,6 @@ const ArticleEditor = () => {
       
       toast.success("PDF wird verarbeitet...");
       
-      // Poll for completion
       const checkStatus = async () => {
         const docResponse = await axios.get(`${API}/documents/${response.data.document_id}`);
         if (docResponse.data.status === "completed") {
@@ -211,6 +334,13 @@ const ArticleEditor = () => {
       htmlContent += `<h2>Zusammenfassung</h2><p>${doc.summary}</p>`;
     }
     
+    // Add headlines
+    if (doc.structured_content?.headlines?.length > 0) {
+      doc.structured_content.headlines.forEach(headline => {
+        htmlContent += `<h3>${headline}</h3>`;
+      });
+    }
+    
     // Add bullet points
     if (doc.structured_content?.bulletpoints?.length > 0) {
       htmlContent += `<h2>Hauptpunkte</h2><ul>`;
@@ -220,10 +350,17 @@ const ArticleEditor = () => {
       htmlContent += `</ul>`;
     }
     
+    // Add tables
+    if (doc.structured_content?.tables?.length > 0) {
+      htmlContent += `<h2>Tabellen</h2>`;
+      doc.structured_content.tables.forEach(table => {
+        htmlContent += table.html;
+      });
+    }
+    
     // Add extracted text
     if (doc.extracted_text) {
       htmlContent += `<h2>Inhalt</h2>`;
-      // Convert paragraphs
       const paragraphs = doc.extracted_text.split('\n\n');
       paragraphs.forEach(p => {
         if (p.trim()) {
@@ -239,20 +376,19 @@ const ArticleEditor = () => {
       title: prev.title || doc.filename.replace(".pdf", "")
     }));
     
-    toast.success("PDF-Inhalt eingefügt");
+    toast.success("PDF-Inhalt eingefügt (inkl. Tabellen und Struktur)");
     setPdfDialog({ open: false });
   };
 
-  const handleImportExistingPdf = async (doc) => {
-    setImportingPdf(true);
-    insertPdfContent(doc);
-    setImportingPdf(false);
+  const getCategoryName = (categoryId) => {
+    const cat = categories.find(c => c.category_id === categoryId);
+    return cat?.name || "Keine Kategorie";
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-8 h-8 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
@@ -260,12 +396,47 @@ const ArticleEditor = () => {
   return (
     <div className="max-w-6xl mx-auto space-y-6 animate-fadeIn" data-testid="article-editor">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <Button variant="ghost" onClick={() => navigate("/articles")} data-testid="back-btn">
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Zurück
-        </Button>
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" onClick={() => navigate("/articles")} data-testid="back-btn">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Zurück
+          </Button>
+          
+          {/* Active Editors Indicator */}
+          {activeEditors.length > 0 && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg">
+              <Users className="w-4 h-4 text-amber-600" />
+              <span className="text-sm text-amber-700">Weitere Bearbeiter:</span>
+              <div className="flex -space-x-2">
+                {activeEditors.map((editor, i) => (
+                  <Avatar key={i} className="w-6 h-6 border-2 border-white">
+                    <AvatarImage src={editor.picture} alt={editor.name} />
+                    <AvatarFallback className="text-xs bg-amber-100">
+                      {editor.name?.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                ))}
+              </div>
+              <span className="text-sm font-medium text-amber-800">
+                {activeEditors.map(e => e.name.split(' ')[0]).join(', ')}
+              </span>
+            </div>
+          )}
+        </div>
+        
         <div className="flex gap-2">
+          {!isNew && (
+            <Button
+              variant="outline"
+              onClick={handleToggleFavorite}
+              className={isFavorite ? "text-amber-600 border-amber-300 bg-amber-50" : ""}
+              data-testid="favorite-btn"
+            >
+              <Star className={`w-4 h-4 mr-2 ${isFavorite ? "fill-amber-500" : ""}`} />
+              {isFavorite ? "Favorit" : "Favorisieren"}
+            </Button>
+          )}
           <Button 
             variant="outline" 
             onClick={() => setPdfDialog({ open: true })}
@@ -394,31 +565,90 @@ const ArticleEditor = () => {
             </CardContent>
           </Card>
 
-          {/* Category */}
+          {/* Visibility */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">Kategorie</CardTitle>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Shield className="w-4 h-4" />
+                Sichtbarkeit
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <Select 
-                value={article.category_id || "none"} 
-                onValueChange={(value) => setArticle(prev => ({ 
-                  ...prev, 
-                  category_id: value === "none" ? null : value 
-                }))}
+                value={article.visibility || "all"} 
+                onValueChange={(value) => setArticle(prev => ({ ...prev, visibility: value }))}
               >
-                <SelectTrigger data-testid="category-select">
-                  <SelectValue placeholder="Kategorie wählen" />
+                <SelectTrigger data-testid="visibility-select">
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Keine Kategorie</SelectItem>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat.category_id} value={cat.category_id}>
-                      {cat.name}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="all">
+                    <div className="flex items-center gap-2">
+                      <Users className="w-4 h-4" />
+                      Alle Mitarbeiter
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="editors">
+                    <div className="flex items-center gap-2">
+                      <Eye className="w-4 h-4" />
+                      Nur Editoren & Admins
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="admins">
+                    <div className="flex items-center gap-2">
+                      <Shield className="w-4 h-4" />
+                      Nur Administratoren
+                    </div>
+                  </SelectItem>
                 </SelectContent>
               </Select>
+            </CardContent>
+          </Card>
+
+          {/* Category - Hierarchical */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <FolderTree className="w-4 h-4" />
+                  Kategorie
+                </span>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-7 px-2"
+                  onClick={() => setCategoryDialog({ open: true })}
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-between" data-testid="category-select">
+                    <span className="truncate">{getCategoryName(article.category_id)}</span>
+                    <ChevronRight className="w-4 h-4 shrink-0" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-2" align="start">
+                  <div className="max-h-64 overflow-auto">
+                    <button
+                      onClick={() => setArticle(prev => ({ ...prev, category_id: null }))}
+                      className={`w-full text-left px-2 py-1.5 rounded text-sm hover:bg-muted transition-colors ${
+                        !article.category_id ? 'bg-red-50 text-red-700 font-medium' : ''
+                      }`}
+                    >
+                      Keine Kategorie
+                    </button>
+                    <CategoryTree
+                      categories={categories}
+                      selectedId={article.category_id}
+                      onSelect={(id) => setArticle(prev => ({ ...prev, category_id: id }))}
+                    />
+                  </div>
+                </PopoverContent>
+              </Popover>
             </CardContent>
           </Card>
 
@@ -509,7 +739,7 @@ const ArticleEditor = () => {
           <DialogHeader>
             <DialogTitle>PDF importieren</DialogTitle>
             <DialogDescription>
-              Laden Sie ein neues PDF hoch oder wählen Sie ein bereits verarbeitetes Dokument.
+              Laden Sie ein PDF hoch. Inhalt, Tabellen, Struktur und Bilder werden automatisch extrahiert.
             </DialogDescription>
           </DialogHeader>
           
@@ -519,7 +749,7 @@ const ArticleEditor = () => {
               <Upload className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
               <p className="font-medium mb-2">Neues PDF hochladen</p>
               <p className="text-sm text-muted-foreground mb-4">
-                Das PDF wird automatisch analysiert, Bilder, Tabellen und Strukturen werden extrahiert.
+                Das PDF wird analysiert und Inhalt, Tabellen und Struktur werden übernommen.
               </p>
               <label>
                 <input
@@ -556,14 +786,14 @@ const ArticleEditor = () => {
                     <div 
                       key={doc.document_id}
                       className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 cursor-pointer"
-                      onClick={() => handleImportExistingPdf(doc)}
+                      onClick={() => insertPdfContent(doc)}
                     >
                       <div className="flex items-center gap-3">
                         <FileText className="w-5 h-5 text-muted-foreground" />
                         <div>
                           <p className="font-medium">{doc.filename}</p>
                           <p className="text-xs text-muted-foreground">
-                            {doc.page_count} Seiten • {doc.original_language}
+                            {doc.page_count} Seiten • {doc.structured_content?.tables?.length || 0} Tabellen
                           </p>
                         </div>
                       </div>
@@ -580,6 +810,54 @@ const ArticleEditor = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setPdfDialog({ open: false })}>
               Abbrechen
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Category Dialog */}
+      <Dialog open={categoryDialog.open} onOpenChange={(open) => setCategoryDialog({ open })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Neue Kategorie erstellen</DialogTitle>
+            <DialogDescription>
+              Erstellen Sie eine neue Kategorie für Ihre Wissensartikel.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Name *</Label>
+              <Input
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                placeholder="Kategoriename..."
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Übergeordnete Kategorie</Label>
+              <Select value={newCategoryParent || "none"} onValueChange={setNewCategoryParent}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Keine (Root-Kategorie)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Keine (Root-Kategorie)</SelectItem>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.category_id} value={cat.category_id}>
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCategoryDialog({ open: false })}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleCreateCategory} className="bg-canusa-red hover:bg-red-600">
+              Erstellen
             </Button>
           </DialogFooter>
         </DialogContent>
