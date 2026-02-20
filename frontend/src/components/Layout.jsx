@@ -158,17 +158,34 @@ const Header = () => {
 
         {/* Theme Toggle & User Menu */}
         <div className="flex items-center gap-2">
-          {/* Theme Toggle */}
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={cycleTheme}
-            className="gap-1.5 text-muted-foreground hover:text-foreground"
-            data-testid="theme-toggle"
-          >
-            {getThemeIcon()}
-            <span className="hidden sm:inline text-xs">Mode</span>
-          </Button>
+          {/* Theme Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="gap-1.5 text-muted-foreground hover:text-foreground"
+                data-testid="theme-toggle"
+              >
+                {theme === 'dark' ? <Moon className="w-4 h-4" /> : theme === 'light' ? <Sun className="w-4 h-4" /> : <Monitor className="w-4 h-4" />}
+                <span className="hidden sm:inline text-xs">Mode</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setTheme('light')} className={theme === 'light' ? 'bg-muted' : ''}>
+                <Sun className="w-4 h-4 mr-2" />
+                Hell
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme('dark')} className={theme === 'dark' ? 'bg-muted' : ''}>
+                <Moon className="w-4 h-4 mr-2" />
+                Dunkel
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme('system')} className={theme === 'system' ? 'bg-muted' : ''}>
+                <Monitor className="w-4 h-4 mr-2" />
+                Automatisch
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* User Menu */}
           <DropdownMenu>
