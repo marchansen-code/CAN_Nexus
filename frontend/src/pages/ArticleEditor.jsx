@@ -652,6 +652,39 @@ const ArticleEditor = () => {
             </CardContent>
           </Card>
 
+          {/* Contact Person */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <User className="w-4 h-4" />
+                Ansprechpartner
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Select 
+                value={article.contact_person_id || ""} 
+                onValueChange={(value) => setArticle(prev => ({ ...prev, contact_person_id: value || null }))}
+              >
+                <SelectTrigger data-testid="contact-person-select">
+                  <SelectValue placeholder="Ansprechpartner wählen..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">
+                    <span className="text-muted-foreground">Kein Ansprechpartner</span>
+                  </SelectItem>
+                  {users.map((u) => (
+                    <SelectItem key={u.user_id} value={u.user_id}>
+                      <div className="flex items-center gap-2">
+                        <User className="w-4 h-4" />
+                        {u.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </CardContent>
+          </Card>
+
           {/* Category - Hierarchical */}
           <Card>
             <CardHeader className="pb-3">
