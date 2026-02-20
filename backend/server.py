@@ -314,6 +314,59 @@ async def logout(request: Request, response: Response):
     response.delete_cookie(key="session_token", path="/")
     return {"message": "Logged out successfully"}
 
+class ExtendSessionRequest(BaseModel):
+    extend: bool
+
+@api_router.post("/auth/extend-session")
+async def extend_session(
+    request_body: ExtendSessionRequest,
+    request: Request,
+    response: Response,
+    user: User = Depends(get_current_user)
+):
+    """Extend or reset session duration"""
+    session_token = request.cookies.get("session_token")
+    
+    if not session_token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            session_token = auth_header[7:]
+    
+    if not session_token:
+        raise HTTPException(status_code=401, detail="No session found")
+    
+    # Determine new expiry based on preference
+    if request_body.extend:
+        # 30 days for "stay logged in"
+        new_expires = datetime.now(timezone.utc) + timedelta(days=30)
+        max_age = 30 * 24 * 60 * 60
+    else:
+        # 7 days default
+        new_expires = datetime.now(timezone.utc) + timedelta(days=7)
+        max_age = 7 * 24 * 60 * 60
+    
+    # Update session in database
+    await db.user_sessions.update_one(
+        {"session_token": session_token},
+        {"$set": {"expires_at": new_expires.isoformat()}}
+    )
+    
+    # Update cookie with new expiry
+    response.set_cookie(
+        key="session_token",
+        value=session_token,
+        httponly=True,
+        secure=True,
+        samesite="none",
+        path="/",
+        max_age=max_age
+    )
+    
+    return {
+        "message": f"Session extended to {30 if request_body.extend else 7} days",
+        "expires_at": new_expires.isoformat()
+    }
+
 # ==================== USER MANAGEMENT ENDPOINTS ====================
 
 class RoleUpdate(BaseModel):
