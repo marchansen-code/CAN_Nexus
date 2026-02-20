@@ -158,6 +158,7 @@ const ArticleEditor = () => {
 
   useEffect(() => {
     fetchCategories();
+    fetchUsers();
     if (!isNew && articleId) {
       fetchArticle();
     }
@@ -169,6 +170,15 @@ const ArticleEditor = () => {
       setCategories(response.data);
     } catch (error) {
       console.error("Failed to fetch categories:", error);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const response = await axios.get(`${API}/users`);
+      setUsers(response.data);
+    } catch (error) {
+      console.error("Failed to fetch users:", error);
     }
   };
 
