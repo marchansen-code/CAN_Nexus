@@ -1,0 +1,64 @@
+{
+  "summary": "Iteration 6: Tested all 4 bugfixes for CANUSA Nexus - (1) Top 10 Artikel kompakter, (2) PDF-Einbettung als iFrame, (3) User-Löschung für Admins, (4) Theme-Mode als Dropdown. All features verified working correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration6_bugfixes.py",
+    "/app/test_reports/pytest/pytest_results_iter6.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "100% (13/13 tests passed)",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "note": "Used temporary test admin user for testing, cleaned up after tests"
+  },
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All 4 bugfixes verified: (1) Top 10 Artikel section is now compact with smaller items in horizontal scrollable row, page has max-w-full and overflow-hidden, (2) PDF import dialog shows iFrame preview with 'Neuer Tab' button and 'PDF einbetten' button to embed PDF as iFrame in article, (3) DELETE /api/users/{id} endpoint works for user deletion - admin can block AND delete users - UI shows 3 buttons per user row (Rolle, Sperren, Löschen), (4) Theme toggle is now a Dropdown with Hell/Dunkel/Automatisch options instead of single button.",
+  "features_verified": {
+    "top_10_kompakt": {
+      "status": "VERIFIED",
+      "notes": "Top 10 Artikel section shows compact items with smaller badges (1-7 visible), horizontal scroll, no page overflow"
+    },
+    "neuer_artikel_button": {
+      "status": "VERIFIED",
+      "notes": "'Neuer Artikel' button visible in top right of Articles page with data-testid='create-article-btn'"
+    },
+    "theme_dropdown": {
+      "status": "VERIFIED",
+      "notes": "Theme toggle is now dropdown with Hell/Dunkel/Automatisch options, accessed via data-testid='theme-toggle'"
+    },
+    "delete_user_api": {
+      "status": "VERIFIED",
+      "notes": "DELETE /api/users/{id} works correctly - returns {message: 'User deleted'}, user no longer found after deletion"
+    },
+    "delete_user_ui": {
+      "status": "VERIFIED",
+      "notes": "User Management shows 3 action buttons per row (Rolle, Sperren, Löschen trash icon) with data-testid='delete-user-{id}'"
+    },
+    "pdf_iframe_preview": {
+      "status": "VERIFIED",
+      "notes": "PDF import dialog shows iFrame preview of uploaded PDF with h-64 height"
+    },
+    "pdf_neuer_tab_button": {
+      "status": "VERIFIED",
+      "notes": "'Neuer Tab' button with ExternalLink icon opens PDF in new browser tab via window.open"
+    },
+    "pdf_einbetten_button": {
+      "status": "VERIFIED",
+      "notes": "'PDF einbetten' button inserts iFrame HTML into article content for embedded PDF viewing"
+    }
+  }
+}
