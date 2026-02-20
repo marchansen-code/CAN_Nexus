@@ -544,23 +544,61 @@ async def upload_document(
     }
 
 async def process_document(document_id: str, file_path: str, target_language: str):
-    """Process PDF document: extract text, summarize, translate, create article"""
+    """Process PDF document: extract text, images, tables, summarize, translate"""
     try:
         await db.documents.update_one(
             {"document_id": document_id},
             {"$set": {"status": "processing"}}
         )
         
-        # Extract text from PDF
+        # Extract text, tables, and images from PDF
         extracted_text = ""
         page_count = 0
+        extracted_tables = []
+        extracted_images = []
         
         with pdfplumber.open(file_path) as pdf:
             page_count = len(pdf.pages)
-            for page in pdf.pages:
+            for page_num, page in enumerate(pdf.pages, 1):
+                # Extract text
                 text = page.extract_text()
                 if text:
-                    extracted_text += text + "\n\n"
+                    extracted_text += f"--- Seite {page_num} ---\n{text}\n\n"
+                
+                # Extract tables
+                tables = page.extract_tables()
+                for table_idx, table in enumerate(tables):
+                    if table and len(table) > 0:
+                        # Convert table to HTML format
+                        table_html = "<table class='border-collapse w-full my-4'>"
+                        for row_idx, row in enumerate(table):
+                            if row:
+                                tag = "th" if row_idx == 0 else "td"
+                                table_html += "<tr>"
+                                for cell in row:
+                                    cell_content = cell if cell else ""
+                                    table_html += f"<{tag} class='border border-slate-300 p-2'>{cell_content}</{tag}>"
+                                table_html += "</tr>"
+                        table_html += "</table>"
+                        extracted_tables.append({
+                            "page": page_num,
+                            "index": table_idx,
+                            "html": table_html,
+                            "rows": len(table),
+                            "cols": len(table[0]) if table else 0
+                        })
+                
+                # Extract images (metadata only - actual extraction would need additional libraries)
+                if hasattr(page, 'images') and page.images:
+                    for img_idx, img in enumerate(page.images):
+                        extracted_images.append({
+                            "page": page_num,
+                            "index": img_idx,
+                            "width": img.get("width", 0),
+                            "height": img.get("height", 0),
+                            "x": img.get("x0", 0),
+                            "y": img.get("top", 0)
+                        })
         
         if not extracted_text.strip():
             raise Exception("No text could be extracted from PDF")
@@ -577,6 +615,7 @@ async def process_document(document_id: str, file_path: str, target_language: st
 1. Eine kurze Zusammenfassung (max. 200 Wörter)
 2. Die Hauptpunkte als Bulletpoints
 3. Erkenne die Originalsprache des Dokuments
+4. Identifiziere wichtige Überschriften/Abschnitte
 
 Text:
 {extracted_text[:8000]}
@@ -585,6 +624,10 @@ Antworte im folgenden Format:
 SPRACHE: [erkannte Sprache]
 ZUSAMMENFASSUNG:
 [Zusammenfassung]
+
+ÜBERSCHRIFTEN:
+- [Überschrift 1]
+- [Überschrift 2]
 
 HAUPTPUNKTE:
 - [Punkt 1]
