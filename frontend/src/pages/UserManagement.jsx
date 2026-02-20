@@ -81,6 +81,7 @@ const UserManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [editDialog, setEditDialog] = useState({ open: false, user: null });
   const [selectedRole, setSelectedRole] = useState("");
+  const [deleteDialog, setDeleteDialog] = useState({ open: false, user: null });
 
   useEffect(() => {
     fetchUsers();
