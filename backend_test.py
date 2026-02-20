@@ -208,7 +208,10 @@ class BackendAPITester:
         if self.failed_tests:
             print("\n❌ FAILED TESTS:")
             for test in self.failed_tests:
-                print(f"  - {test['name']}: {test.get('error', f\"Expected {test.get('expected')}, got {test.get('actual')}\")}")
+                if 'error' in test:
+                    print(f"  - {test['name']}: {test['error']}")
+                else:
+                    print(f"  - {test['name']}: Expected {test.get('expected')}, got {test.get('actual')}")
         
         print("\n💡 IMPORTANT NOTES:")
         print("  - For authenticated tests to pass, you must first create a test user session")
