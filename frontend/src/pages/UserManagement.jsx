@@ -95,6 +95,11 @@ const UserManagement = () => {
   const [editDialog, setEditDialog] = useState({ open: false, user: null });
   const [selectedRole, setSelectedRole] = useState("");
   const [deleteDialog, setDeleteDialog] = useState({ open: false, user: null });
+  const [createDialog, setCreateDialog] = useState(false);
+  const [passwordDialog, setPasswordDialog] = useState({ open: false, user: null });
+  const [newUser, setNewUser] = useState({ email: "", name: "", password: "", role: "viewer" });
+  const [newPassword, setNewPassword] = useState("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     fetchUsers();
