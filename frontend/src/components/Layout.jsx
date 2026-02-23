@@ -32,7 +32,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 // Navigation items with role-based visibility
 const allNavItems = [
   { path: "/dashboard", icon: LayoutDashboard, label: "Dashboard", roles: ["admin", "editor", "viewer"] },
-  { path: "/search", icon: Search, label: "KI-Suche", roles: ["admin", "editor", "viewer"] },
+  { path: "/search", icon: Search, label: "Suche", roles: ["admin", "editor", "viewer"] },
   { path: "/articles", icon: FileText, label: "Artikel", roles: ["admin", "editor", "viewer"] },
   { path: "/documents", icon: Upload, label: "Dokumente", roles: ["admin", "editor"] },
   { path: "/categories", icon: FolderTree, label: "Kategorien", roles: ["admin", "editor"] },
