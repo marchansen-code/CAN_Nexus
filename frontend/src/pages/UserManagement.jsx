@@ -258,6 +258,12 @@ const UserManagement = () => {
             Verwalten Sie Benutzer und deren Zugriffsrechte
           </p>
         </div>
+        {isAdmin && (
+          <Button onClick={() => setCreateDialog(true)} className="bg-red-500 hover:bg-red-600">
+            <UserPlus className="w-4 h-4 mr-2" />
+            Neuer Benutzer
+          </Button>
+        )}
       </div>
 
       {/* Role Info Cards */}
