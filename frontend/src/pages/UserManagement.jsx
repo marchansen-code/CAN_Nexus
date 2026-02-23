@@ -589,6 +589,156 @@ const UserManagement = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Create User Dialog */}
+      <Dialog open={createDialog} onOpenChange={setCreateDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Neuen Benutzer anlegen</DialogTitle>
+            <DialogDescription>
+              Erstellen Sie einen neuen Benutzer für CANUSA Nexus
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="new-name">Name *</Label>
+              <Input
+                id="new-name"
+                placeholder="Max Mustermann"
+                value={newUser.name}
+                onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="new-email">E-Mail *</Label>
+              <Input
+                id="new-email"
+                type="email"
+                placeholder="max.mustermann@canusa.de"
+                value={newUser.email}
+                onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="new-password">Passwort *</Label>
+              <Input
+                id="new-password"
+                type="password"
+                placeholder="Mindestens 6 Zeichen"
+                value={newUser.password}
+                onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Rolle</Label>
+              <Select value={newUser.role} onValueChange={(value) => setNewUser({ ...newUser, role: value })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="viewer">
+                    <div className="flex items-center gap-2">
+                      <Eye className="w-4 h-4 text-slate-600" />
+                      Betrachter
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="editor">
+                    <div className="flex items-center gap-2">
+                      <Edit className="w-4 h-4 text-indigo-600" />
+                      Editor
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="admin">
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck className="w-4 h-4 text-red-600" />
+                      Administrator
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateDialog(false)}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleCreateUser} disabled={saving} className="bg-red-500 hover:bg-red-600">
+              {saving ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Wird angelegt...
+                </>
+              ) : (
+                <>
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Anlegen
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Change Password Dialog */}
+      <Dialog open={passwordDialog.open} onOpenChange={(open) => !open && setPasswordDialog({ open: false, user: null })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Passwort ändern</DialogTitle>
+            <DialogDescription>
+              Neues Passwort für {passwordDialog.user?.name} setzen
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+              <Avatar className="w-10 h-10">
+                <AvatarFallback className="bg-indigo-100 text-indigo-700">
+                  {getInitials(passwordDialog.user?.name)}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <p className="font-medium">{passwordDialog.user?.name}</p>
+                <p className="text-sm text-muted-foreground">{passwordDialog.user?.email}</p>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="new-password-change">Neues Passwort *</Label>
+              <Input
+                id="new-password-change"
+                type="password"
+                placeholder="Mindestens 6 Zeichen"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+              />
+            </div>
+            
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <p className="text-sm text-amber-800">
+                Der Benutzer wird automatisch abgemeldet und muss sich mit dem neuen Passwort anmelden.
+              </p>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPasswordDialog({ open: false, user: null })}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleChangePassword} disabled={saving} className="bg-red-500 hover:bg-red-600">
+              {saving ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Wird geändert...
+                </>
+              ) : (
+                "Passwort ändern"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
