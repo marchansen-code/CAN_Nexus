@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import "@/App.css";
@@ -6,7 +6,7 @@ import "@/App.css";
 // Components
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/ThemeProvider";
-import Landing from "@/pages/Landing";
+import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
 import Search from "@/pages/Search";
 import Articles from "@/pages/Articles";
@@ -26,50 +26,6 @@ axios.defaults.withCredentials = true;
 
 // Auth Context
 export const AuthContext = React.createContext(null);
-
-// Auth Callback Component
-const AuthCallback = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const hasProcessed = useRef(false);
-
-  useEffect(() => {
-    // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
-    if (hasProcessed.current) return;
-    hasProcessed.current = true;
-
-    const processAuth = async () => {
-      const hash = location.hash;
-      const sessionIdMatch = hash.match(/session_id=([^&]+)/);
-      
-      if (sessionIdMatch) {
-        const sessionId = sessionIdMatch[1];
-        try {
-          const response = await axios.post(`${API}/auth/session`, {
-            session_id: sessionId
-          });
-          navigate("/dashboard", { state: { user: response.data }, replace: true });
-        } catch (error) {
-          console.error("Auth failed:", error);
-          navigate("/", { replace: true });
-        }
-      } else {
-        navigate("/", { replace: true });
-      }
-    };
-
-    processAuth();
-  }, [location, navigate]);
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center">
-        <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-        <p className="text-muted-foreground">Anmeldung wird verarbeitet...</p>
-      </div>
-    </div>
-  );
-};
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -92,7 +48,7 @@ const ProtectedRoute = ({ children }) => {
         setIsAuthenticated(true);
       } catch (error) {
         setIsAuthenticated(false);
-        navigate("/", { replace: true });
+        navigate("/login", { replace: true });
       }
     };
 
@@ -102,7 +58,7 @@ const ProtectedRoute = ({ children }) => {
   if (isAuthenticated === null) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-8 h-8 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
@@ -120,16 +76,10 @@ const ProtectedRoute = ({ children }) => {
 
 // App Router
 const AppRouter = () => {
-  const location = useLocation();
-
-  // Check for session_id in URL hash BEFORE rendering routes
-  if (location.hash?.includes("session_id=")) {
-    return <AuthCallback />;
-  }
-
   return (
     <Routes>
-      <Route path="/" element={<Landing />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/" element={<Navigate to="/login" replace />} />
       <Route
         path="/dashboard"
         element={
@@ -230,7 +180,7 @@ const AppRouter = () => {
           </ProtectedRoute>
         }
       />
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
 };
