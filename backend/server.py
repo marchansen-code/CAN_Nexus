@@ -10,12 +10,9 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional, Dict, Any
 import uuid
 from datetime import datetime, timezone, timedelta
-import httpx
 import pdfplumber
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from pinecone import Pinecone
 import asyncio
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+from passlib.context import CryptContext
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -25,19 +22,16 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
-# Pinecone initialization
-PINECONE_API_KEY = os.environ.get('PINECONE_API_KEY', '')
-EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
-INDEX_NAME = "knowledge-nexus"
+# Password hashing
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# Allowed email domains
-ALLOWED_DOMAINS = ["canusa.de", "cu-travel.com"]
+# Default admin credentials
+DEFAULT_ADMIN_EMAIL = "marc.hansen@canusa.de"
+DEFAULT_ADMIN_PASSWORD = "CanusaNexus2024!"
+DEFAULT_ADMIN_NAME = "Marc Hansen"
 
 # Active editors tracking (in-memory, for production use Redis)
-active_editors = {}  # {article_id: {user_id: {name, timestamp}}}
-
-pc = None
-pinecone_index = None
+active_editors = {}
 
 # Create the main app
 app = FastAPI(title="CANUSA Knowledge Hub API")
@@ -59,9 +53,8 @@ class User(BaseModel):
     user_id: str
     email: str
     name: str
-    picture: Optional[str] = None
-    role: str = "editor"
-    is_blocked: bool = False  # Sperrfunktion für Admins
+    role: str = "viewer"
+    is_blocked: bool = False
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class UserSession(BaseModel):
@@ -96,13 +89,13 @@ class Article(BaseModel):
     content: str
     summary: Optional[str] = None
     category_id: Optional[str] = None
-    status: str = "draft"  # draft, review, published
-    visibility: str = "all"  # all, editors, admins
+    status: str = "draft"
+    visibility: str = "all"
     tags: List[str] = []
     source_document_id: Optional[str] = None
     review_date: Optional[datetime] = None
     favorited_by: List[str] = []
-    contact_person_id: Optional[str] = None  # Ansprechpartner User ID
+    contact_person_id: Optional[str] = None
     created_by: str
     updated_by: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -136,7 +129,7 @@ class Document(BaseModel):
     filename: str
     original_language: Optional[str] = None
     target_language: str = "de"
-    status: str = "pending"  # pending, processing, completed, failed
+    status: str = "pending"
     page_count: int = 0
     extracted_text: Optional[str] = None
     summary: Optional[str] = None
@@ -146,11 +139,6 @@ class Document(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     processed_at: Optional[datetime] = None
 
-class SearchQuery(BaseModel):
-    query: str
-    top_k: int = 5
-    category_id: Optional[str] = None
-
 class SearchResult(BaseModel):
     article_id: str
     title: str
@@ -158,12 +146,13 @@ class SearchResult(BaseModel):
     score: float
     category_name: Optional[str] = None
 
-class AIAnswer(BaseModel):
-    answer: str
-    sources: List[SearchResult]
-    query: str
-
 # ==================== AUTH HELPERS ====================
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_password_hash(password: str) -> str:
+    return pwd_context.hash(password)
 
 async def get_current_user(request: Request) -> User:
     """Get user from session token in cookie or Authorization header"""
@@ -175,7 +164,7 @@ async def get_current_user(request: Request) -> User:
             session_token = auth_header[7:]
     
     if not session_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+        raise HTTPException(status_code=401, detail="Nicht authentifiziert")
     
     session = await db.user_sessions.find_one(
         {"session_token": session_token},
@@ -183,7 +172,7 @@ async def get_current_user(request: Request) -> User:
     )
     
     if not session:
-        raise HTTPException(status_code=401, detail="Session not found")
+        raise HTTPException(status_code=401, detail="Sitzung nicht gefunden")
     
     expires_at = session.get("expires_at")
     if isinstance(expires_at, str):
@@ -191,7 +180,7 @@ async def get_current_user(request: Request) -> User:
     if expires_at.tzinfo is None:
         expires_at = expires_at.replace(tzinfo=timezone.utc)
     if expires_at < datetime.now(timezone.utc):
-        raise HTTPException(status_code=401, detail="Session expired")
+        raise HTTPException(status_code=401, detail="Sitzung abgelaufen")
     
     user = await db.users.find_one(
         {"user_id": session["user_id"]},
@@ -199,16 +188,14 @@ async def get_current_user(request: Request) -> User:
     )
     
     if not user:
-        raise HTTPException(status_code=401, detail="User not found")
+        raise HTTPException(status_code=401, detail="Benutzer nicht gefunden")
     
-    # Check if user is blocked
     if user.get("is_blocked", False):
-        raise HTTPException(status_code=403, detail="Your account has been blocked. Please contact an administrator.")
+        raise HTTPException(status_code=403, detail="Ihr Konto wurde gesperrt. Bitte kontaktieren Sie einen Administrator.")
     
     return User(**user)
 
 async def get_optional_user(request: Request) -> Optional[User]:
-    """Get user if authenticated, None otherwise"""
     try:
         return await get_current_user(request)
     except HTTPException:
@@ -216,69 +203,42 @@ async def get_optional_user(request: Request) -> Optional[User]:
 
 # ==================== AUTH ENDPOINTS ====================
 
-@api_router.post("/auth/session")
-async def create_session(request: Request, response: Response):
-    """Exchange session_id for session_token"""
-    body = await request.json()
-    session_id = body.get("session_id")
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+    stay_logged_in: bool = False
+
+class UserCreate(BaseModel):
+    email: str
+    password: str
+    name: str
+    role: str = "viewer"
+
+class PasswordChange(BaseModel):
+    new_password: str
+
+@api_router.post("/auth/login")
+async def login(login_data: LoginRequest, response: Response):
+    """Login with email and password"""
+    user = await db.users.find_one({"email": login_data.email.lower()}, {"_id": 0})
     
-    if not session_id:
-        raise HTTPException(status_code=400, detail="session_id required")
+    if not user:
+        raise HTTPException(status_code=401, detail="Ungültige E-Mail oder Passwort")
     
-    # Get session data from Emergent Auth
-    async with httpx.AsyncClient() as client_http:
-        auth_response = await client_http.get(
-            "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data",
-            headers={"X-Session-ID": session_id}
-        )
+    if not verify_password(login_data.password, user.get("password_hash", "")):
+        raise HTTPException(status_code=401, detail="Ungültige E-Mail oder Passwort")
     
-    if auth_response.status_code != 200:
-        raise HTTPException(status_code=401, detail="Invalid session_id")
-    
-    auth_data = auth_response.json()
-    
-    # Check if email domain is allowed
-    email = auth_data.get("email", "")
-    email_domain = email.split("@")[-1] if "@" in email else ""
-    if email_domain not in ALLOWED_DOMAINS:
-        raise HTTPException(
-            status_code=403, 
-            detail="Zugang nur für Mitarbeiter von CANUSA und CU-Travel. Bitte verwenden Sie Ihre @canusa.de oder @cu-travel.com E-Mail-Adresse."
-        )
-    
-    # Create or update user
-    user_id = f"user_{uuid.uuid4().hex[:12]}"
-    existing_user = await db.users.find_one({"email": auth_data["email"]}, {"_id": 0})
-    
-    if existing_user:
-        user_id = existing_user["user_id"]
-        await db.users.update_one(
-            {"email": auth_data["email"]},
-            {"$set": {
-                "name": auth_data["name"],
-                "picture": auth_data.get("picture"),
-                "updated_at": datetime.now(timezone.utc).isoformat()
-            }}
-        )
-    else:
-        new_user = {
-            "user_id": user_id,
-            "email": auth_data["email"],
-            "name": auth_data["name"],
-            "picture": auth_data.get("picture"),
-            "role": "viewer",  # New users start as viewer until admin changes role
-            "recently_viewed": [],
-            "created_at": datetime.now(timezone.utc).isoformat()
-        }
-        await db.users.insert_one(new_user)
+    if user.get("is_blocked", False):
+        raise HTTPException(status_code=403, detail="Ihr Konto wurde gesperrt")
     
     # Create session
-    session_token = auth_data.get("session_token", str(uuid.uuid4()))
-    expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+    session_token = str(uuid.uuid4())
+    days = 30 if login_data.stay_logged_in else 7
+    expires_at = datetime.now(timezone.utc) + timedelta(days=days)
     
     session_doc = {
         "session_id": str(uuid.uuid4()),
-        "user_id": user_id,
+        "user_id": user["user_id"],
         "session_token": session_token,
         "expires_at": expires_at.isoformat(),
         "created_at": datetime.now(timezone.utc).isoformat()
@@ -293,11 +253,17 @@ async def create_session(request: Request, response: Response):
         secure=True,
         samesite="none",
         path="/",
-        max_age=7 * 24 * 60 * 60
+        max_age=days * 24 * 60 * 60
     )
     
-    user = await db.users.find_one({"user_id": user_id}, {"_id": 0})
-    return user
+    # Return user without password hash
+    return {
+        "user_id": user["user_id"],
+        "email": user["email"],
+        "name": user["name"],
+        "role": user["role"],
+        "is_blocked": user.get("is_blocked", False)
+    }
 
 @api_router.get("/auth/me")
 async def get_me(user: User = Depends(get_current_user)):
@@ -312,60 +278,7 @@ async def logout(request: Request, response: Response):
         await db.user_sessions.delete_one({"session_token": session_token})
     
     response.delete_cookie(key="session_token", path="/")
-    return {"message": "Logged out successfully"}
-
-class ExtendSessionRequest(BaseModel):
-    extend: bool
-
-@api_router.post("/auth/extend-session")
-async def extend_session(
-    request_body: ExtendSessionRequest,
-    request: Request,
-    response: Response,
-    user: User = Depends(get_current_user)
-):
-    """Extend or reset session duration"""
-    session_token = request.cookies.get("session_token")
-    
-    if not session_token:
-        auth_header = request.headers.get("Authorization")
-        if auth_header and auth_header.startswith("Bearer "):
-            session_token = auth_header[7:]
-    
-    if not session_token:
-        raise HTTPException(status_code=401, detail="No session found")
-    
-    # Determine new expiry based on preference
-    if request_body.extend:
-        # 30 days for "stay logged in"
-        new_expires = datetime.now(timezone.utc) + timedelta(days=30)
-        max_age = 30 * 24 * 60 * 60
-    else:
-        # 7 days default
-        new_expires = datetime.now(timezone.utc) + timedelta(days=7)
-        max_age = 7 * 24 * 60 * 60
-    
-    # Update session in database
-    await db.user_sessions.update_one(
-        {"session_token": session_token},
-        {"$set": {"expires_at": new_expires.isoformat()}}
-    )
-    
-    # Update cookie with new expiry
-    response.set_cookie(
-        key="session_token",
-        value=session_token,
-        httponly=True,
-        secure=True,
-        samesite="none",
-        path="/",
-        max_age=max_age
-    )
-    
-    return {
-        "message": f"Session extended to {30 if request_body.extend else 7} days",
-        "expires_at": new_expires.isoformat()
-    }
+    return {"message": "Erfolgreich abgemeldet"}
 
 # ==================== USER MANAGEMENT ENDPOINTS ====================
 
@@ -375,35 +288,65 @@ class RoleUpdate(BaseModel):
 @api_router.get("/users", response_model=List[Dict])
 async def get_users(user: User = Depends(get_current_user)):
     """Get all users"""
-    users = await db.users.find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    users = await db.users.find({}, {"_id": 0, "password_hash": 0}).sort("created_at", -1).to_list(1000)
     return users
 
 @api_router.get("/users/{user_id}", response_model=Dict)
 async def get_user(user_id: str, current_user: User = Depends(get_current_user)):
     """Get a specific user"""
-    user = await db.users.find_one({"user_id": user_id}, {"_id": 0})
+    user = await db.users.find_one({"user_id": user_id}, {"_id": 0, "password_hash": 0})
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail="Benutzer nicht gefunden")
     return user
 
-@api_router.put("/users/{user_id}/role")
-async def update_user_role(
-    user_id: str,
-    role_update: RoleUpdate,
-    current_user: User = Depends(get_current_user)
-):
-    """Update a user's role (admin only)"""
-    # Check if current user is admin
+@api_router.post("/users")
+async def create_user(user_data: UserCreate, current_user: User = Depends(get_current_user)):
+    """Create a new user (admin only)"""
     if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Only admins can change user roles")
+        raise HTTPException(status_code=403, detail="Nur Administratoren können Benutzer anlegen")
+    
+    # Check if email already exists
+    existing = await db.users.find_one({"email": user_data.email.lower()})
+    if existing:
+        raise HTTPException(status_code=400, detail="E-Mail-Adresse bereits registriert")
     
     # Validate role
-    if role_update.role not in ["admin", "editor", "viewer"]:
-        raise HTTPException(status_code=400, detail="Invalid role. Must be admin, editor, or viewer")
+    if user_data.role not in ["admin", "editor", "viewer"]:
+        raise HTTPException(status_code=400, detail="Ungültige Rolle")
     
-    # Prevent self-demotion
+    # Create user
+    user_id = f"user_{uuid.uuid4().hex[:12]}"
+    new_user = {
+        "user_id": user_id,
+        "email": user_data.email.lower(),
+        "name": user_data.name,
+        "password_hash": get_password_hash(user_data.password),
+        "role": user_data.role,
+        "is_blocked": False,
+        "recently_viewed": [],
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.users.insert_one(new_user)
+    
+    return {
+        "user_id": user_id,
+        "email": user_data.email.lower(),
+        "name": user_data.name,
+        "role": user_data.role,
+        "message": "Benutzer erfolgreich angelegt"
+    }
+
+@api_router.put("/users/{user_id}/role")
+async def update_user_role(user_id: str, role_update: RoleUpdate, current_user: User = Depends(get_current_user)):
+    """Update a user's role (admin only)"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Nur Administratoren können Rollen ändern")
+    
+    if role_update.role not in ["admin", "editor", "viewer"]:
+        raise HTTPException(status_code=400, detail="Ungültige Rolle")
+    
     if user_id == current_user.user_id:
-        raise HTTPException(status_code=400, detail="Cannot change your own role")
+        raise HTTPException(status_code=400, detail="Sie können Ihre eigene Rolle nicht ändern")
     
     result = await db.users.update_one(
         {"user_id": user_id},
@@ -411,26 +354,47 @@ async def update_user_role(
     )
     
     if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail="Benutzer nicht gefunden")
     
-    return {"message": f"User role updated to {role_update.role}"}
+    return {"message": f"Rolle auf {role_update.role} geändert"}
+
+@api_router.put("/users/{user_id}/password")
+async def change_user_password(user_id: str, password_data: PasswordChange, current_user: User = Depends(get_current_user)):
+    """Change a user's password (admin only)"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Nur Administratoren können Passwörter ändern")
+    
+    if len(password_data.new_password) < 6:
+        raise HTTPException(status_code=400, detail="Passwort muss mindestens 6 Zeichen lang sein")
+    
+    result = await db.users.update_one(
+        {"user_id": user_id},
+        {"$set": {
+            "password_hash": get_password_hash(password_data.new_password),
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Benutzer nicht gefunden")
+    
+    # Invalidate all sessions for this user
+    await db.user_sessions.delete_many({"user_id": user_id})
+    
+    return {"message": "Passwort erfolgreich geändert"}
 
 @api_router.put("/users/{user_id}/block")
-async def toggle_user_block(
-    user_id: str,
-    current_user: User = Depends(get_current_user)
-):
+async def toggle_user_block(user_id: str, current_user: User = Depends(get_current_user)):
     """Block or unblock a user (admin only)"""
     if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Only admins can block users")
+        raise HTTPException(status_code=403, detail="Nur Administratoren können Benutzer sperren")
     
     if user_id == current_user.user_id:
-        raise HTTPException(status_code=400, detail="Cannot block yourself")
+        raise HTTPException(status_code=400, detail="Sie können sich nicht selbst sperren")
     
-    # Get current block status
     user_doc = await db.users.find_one({"user_id": user_id})
     if not user_doc:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail="Benutzer nicht gefunden")
     
     new_status = not user_doc.get("is_blocked", False)
     
@@ -439,39 +403,31 @@ async def toggle_user_block(
         {"$set": {"is_blocked": new_status}}
     )
     
-    # Delete active sessions if blocking
     if new_status:
-        await db.sessions.delete_many({"user_id": user_id})
+        await db.user_sessions.delete_many({"user_id": user_id})
     
     return {
-        "message": f"User {'blocked' if new_status else 'unblocked'}",
+        "message": f"Benutzer {'gesperrt' if new_status else 'entsperrt'}",
         "is_blocked": new_status
     }
 
 @api_router.delete("/users/{user_id}")
-async def delete_user(
-    user_id: str,
-    current_user: User = Depends(get_current_user)
-):
+async def delete_user(user_id: str, current_user: User = Depends(get_current_user)):
     """Delete a user permanently (admin only)"""
     if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Only admins can delete users")
+        raise HTTPException(status_code=403, detail="Nur Administratoren können Benutzer löschen")
     
     if user_id == current_user.user_id:
-        raise HTTPException(status_code=400, detail="Cannot delete yourself")
+        raise HTTPException(status_code=400, detail="Sie können sich nicht selbst löschen")
     
-    # Check if user exists
     user_doc = await db.users.find_one({"user_id": user_id})
     if not user_doc:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail="Benutzer nicht gefunden")
     
-    # Delete user's sessions
     await db.user_sessions.delete_many({"user_id": user_id})
-    
-    # Delete the user
     await db.users.delete_one({"user_id": user_id})
     
-    return {"message": "User deleted"}
+    return {"message": "Benutzer gelöscht"}
 
 # ==================== CATEGORY ENDPOINTS ====================
 
@@ -482,10 +438,7 @@ async def get_categories(user: User = Depends(get_current_user)):
     return categories
 
 @api_router.post("/categories", response_model=Dict)
-async def create_category(
-    category: CategoryCreate,
-    user: User = Depends(get_current_user)
-):
+async def create_category(category: CategoryCreate, user: User = Depends(get_current_user)):
     """Create a new category"""
     cat_doc = Category(
         name=category.name,
@@ -501,11 +454,7 @@ async def create_category(
     return {k: v for k, v in doc.items() if k != "_id"}
 
 @api_router.put("/categories/{category_id}", response_model=Dict)
-async def update_category(
-    category_id: str,
-    update: CategoryCreate,
-    user: User = Depends(get_current_user)
-):
+async def update_category(category_id: str, update: CategoryCreate, user: User = Depends(get_current_user)):
     """Update a category"""
     result = await db.categories.update_one(
         {"category_id": category_id},
@@ -518,21 +467,18 @@ async def update_category(
         }}
     )
     if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Category not found")
+        raise HTTPException(status_code=404, detail="Kategorie nicht gefunden")
     
     cat = await db.categories.find_one({"category_id": category_id}, {"_id": 0})
     return cat
 
 @api_router.delete("/categories/{category_id}")
-async def delete_category(
-    category_id: str,
-    user: User = Depends(get_current_user)
-):
+async def delete_category(category_id: str, user: User = Depends(get_current_user)):
     """Delete a category"""
     result = await db.categories.delete_one({"category_id": category_id})
     if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Category not found")
-    return {"message": "Category deleted"}
+        raise HTTPException(status_code=404, detail="Kategorie nicht gefunden")
+    return {"message": "Kategorie gelöscht"}
 
 # ==================== ARTICLE ENDPOINTS ====================
 
@@ -555,10 +501,7 @@ async def get_articles(
 @api_router.get("/articles/top-viewed")
 async def get_top_viewed_articles(limit: int = 10, user: User = Depends(get_current_user)):
     """Get top viewed articles system-wide"""
-    articles = await db.articles.find(
-        {},
-        {"_id": 0}
-    ).sort("view_count", -1).limit(limit).to_list(limit)
+    articles = await db.articles.find({}, {"_id": 0}).sort("view_count", -1).limit(limit).to_list(limit)
     return articles
 
 @api_router.get("/articles/by-category/{category_id}")
@@ -571,21 +514,15 @@ async def get_articles_by_category(category_id: str, user: User = Depends(get_cu
     return articles
 
 @api_router.get("/articles/{article_id}", response_model=Dict)
-async def get_article(
-    article_id: str,
-    user: User = Depends(get_current_user)
-):
+async def get_article(article_id: str, user: User = Depends(get_current_user)):
     """Get a single article"""
     article = await db.articles.find_one({"article_id": article_id}, {"_id": 0})
     if not article:
-        raise HTTPException(status_code=404, detail="Article not found")
+        raise HTTPException(status_code=404, detail="Artikel nicht gefunden")
     return article
 
 @api_router.post("/articles", response_model=Dict)
-async def create_article(
-    article: ArticleCreate,
-    user: User = Depends(get_current_user)
-):
+async def create_article(article: ArticleCreate, user: User = Depends(get_current_user)):
     """Create a new article"""
     art_doc = Article(
         title=article.title,
@@ -605,62 +542,10 @@ async def create_article(
         doc["review_date"] = doc["review_date"].isoformat()
     
     await db.articles.insert_one(doc)
-    
-    # Index in Pinecone if published
-    if article.status == "published" and pinecone_index:
-        await index_article_in_pinecone(art_doc.article_id, article.title, article.content)
-    
     return {k: v for k, v in doc.items() if k != "_id"}
 
-@api_router.post("/articles/generate-summary")
-async def generate_summary(
-    request: Request,
-    user: User = Depends(get_current_user)
-):
-    """Generate a summary from article content using AI"""
-    body = await request.json()
-    content = body.get("content", "")
-    
-    if not content or len(content) < 50:
-        return {"summary": ""}
-    
-    # Strip HTML tags for summary generation
-    import re
-    clean_content = re.sub(r'<[^>]+>', '', content)
-    clean_content = clean_content[:4000]  # Limit content length
-    
-    try:
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=f"summary_{uuid.uuid4().hex[:8]}",
-            system_message="Du bist ein Experte für das Erstellen von Zusammenfassungen. Antworte immer auf Deutsch."
-        ).with_model("gemini", "gemini-3-flash-preview")
-        
-        summary_prompt = f"""Erstelle eine kurze, prägnante Zusammenfassung (max. 2-3 Sätze) für den folgenden Artikel-Inhalt. Die Zusammenfassung soll den Kerninhalt des Artikels erfassen:
-
-{clean_content}
-
-Zusammenfassung:"""
-        
-        summary_message = UserMessage(text=summary_prompt)
-        summary = await chat.send_message(summary_message)
-        
-        # Clean up the summary
-        summary = summary.strip()
-        if summary.startswith("Zusammenfassung:"):
-            summary = summary[16:].strip()
-        
-        return {"summary": summary}
-    except Exception as e:
-        logger.error(f"Summary generation failed: {e}")
-        return {"summary": ""}
-
 @api_router.put("/articles/{article_id}", response_model=Dict)
-async def update_article(
-    article_id: str,
-    update: ArticleUpdate,
-    user: User = Depends(get_current_user)
-):
+async def update_article(article_id: str, update: ArticleUpdate, user: User = Depends(get_current_user)):
     """Update an article"""
     update_data = {k: v for k, v in update.model_dump().items() if v is not None}
     update_data["updated_by"] = user.user_id
@@ -675,34 +560,144 @@ async def update_article(
     )
     
     if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Article not found")
+        raise HTTPException(status_code=404, detail="Artikel nicht gefunden")
     
     article = await db.articles.find_one({"article_id": article_id}, {"_id": 0})
-    
-    # Re-index in Pinecone if published
-    if article.get("status") == "published" and pinecone_index:
-        await index_article_in_pinecone(article_id, article["title"], article["content"])
-    
     return article
 
 @api_router.delete("/articles/{article_id}")
-async def delete_article(
-    article_id: str,
-    user: User = Depends(get_current_user)
-):
+async def delete_article(article_id: str, user: User = Depends(get_current_user)):
     """Delete an article"""
     result = await db.articles.delete_one({"article_id": article_id})
     if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Article not found")
+        raise HTTPException(status_code=404, detail="Artikel nicht gefunden")
+    return {"message": "Artikel gelöscht"}
+
+# ==================== SEARCH ====================
+
+class SearchQuery(BaseModel):
+    query: str
+    top_k: int = 10
+    category_id: Optional[str] = None
+
+@api_router.post("/search")
+async def search_articles(query: SearchQuery, user: User = Depends(get_current_user)):
+    """Search articles with keyword matching"""
+    if not query.query or len(query.query) < 2:
+        return {"results": [], "query": query.query}
     
-    # Remove from Pinecone
-    if pinecone_index:
-        try:
-            pinecone_index.delete(ids=[article_id], namespace="articles")
-        except Exception as e:
-            logger.warning(f"Failed to delete from Pinecone: {e}")
+    # Build MongoDB query for text search
+    search_terms = query.query.lower().split()
     
-    return {"message": "Article deleted"}
+    # Search in title, content, summary, and tags
+    or_conditions = []
+    for term in search_terms:
+        or_conditions.extend([
+            {"title": {"$regex": term, "$options": "i"}},
+            {"content": {"$regex": term, "$options": "i"}},
+            {"summary": {"$regex": term, "$options": "i"}},
+            {"tags": {"$regex": term, "$options": "i"}}
+        ])
+    
+    mongo_query = {"$or": or_conditions}
+    
+    if query.category_id:
+        mongo_query["category_id"] = query.category_id
+    
+    articles = await db.articles.find(mongo_query, {"_id": 0}).limit(query.top_k * 2).to_list(query.top_k * 2)
+    
+    # Score and rank results
+    results = []
+    for art in articles:
+        title_lower = art["title"].lower()
+        content_lower = art.get("content", "").lower()
+        summary_lower = art.get("summary", "").lower()
+        
+        # Calculate relevance score
+        score = 0
+        for term in search_terms:
+            if term in title_lower:
+                score += 0.4  # Title matches are most important
+            if term in summary_lower:
+                score += 0.2
+            if term in content_lower:
+                score += 0.1
+        
+        if score == 0:
+            continue
+        
+        # Find snippet
+        snippet = art.get("summary", "")
+        if not snippet:
+            content = art.get("content", "")
+            # Strip HTML tags for snippet
+            import re
+            clean_content = re.sub(r'<[^>]+>', '', content)
+            for term in search_terms:
+                idx = clean_content.lower().find(term)
+                if idx >= 0:
+                    start = max(0, idx - 50)
+                    end = min(len(clean_content), idx + 150)
+                    snippet = "..." + clean_content[start:end].strip() + "..."
+                    break
+            if not snippet:
+                snippet = clean_content[:200] + "..." if len(clean_content) > 200 else clean_content
+        
+        # Get category name
+        category_name = None
+        if art.get("category_id"):
+            cat = await db.categories.find_one({"category_id": art["category_id"]}, {"_id": 0, "name": 1})
+            if cat:
+                category_name = cat["name"]
+        
+        results.append({
+            "article_id": art["article_id"],
+            "title": art["title"],
+            "content_snippet": snippet[:300],
+            "score": min(score, 1.0),
+            "category_name": category_name,
+            "status": art.get("status", "draft"),
+            "updated_at": art.get("updated_at")
+        })
+    
+    # Sort by score
+    results.sort(key=lambda x: x["score"], reverse=True)
+    
+    return {"results": results[:query.top_k], "query": query.query}
+
+@api_router.get("/search/quick")
+async def quick_search(q: str, limit: int = 5, user: User = Depends(get_current_user)):
+    """Quick search for autocomplete - fast, lightweight results"""
+    if not q or len(q) < 2:
+        return {"results": []}
+    
+    # Simple regex search on title and summary only for speed
+    articles = await db.articles.find(
+        {"$or": [
+            {"title": {"$regex": q, "$options": "i"}},
+            {"summary": {"$regex": q, "$options": "i"}}
+        ]},
+        {"_id": 0, "article_id": 1, "title": 1, "summary": 1, "status": 1, "category_id": 1}
+    ).limit(limit).to_list(limit)
+    
+    results = []
+    for art in articles:
+        # Get category name
+        category_name = None
+        if art.get("category_id"):
+            cat = await db.categories.find_one({"category_id": art["category_id"]}, {"_id": 0, "name": 1})
+            if cat:
+                category_name = cat["name"]
+        
+        results.append({
+            "article_id": art["article_id"],
+            "title": art["title"],
+            "summary": (art.get("summary") or "")[:100],
+            "status": art.get("status", "draft"),
+            "category_name": category_name
+        })
+    
+    return {"results": results}
 
 # ==================== DOCUMENT UPLOAD & PROCESSING ====================
 
@@ -715,35 +710,30 @@ async def upload_document(
 ):
     """Upload a PDF document for processing"""
     if not file.filename.lower().endswith('.pdf'):
-        raise HTTPException(status_code=400, detail="Only PDF files are allowed")
+        raise HTTPException(status_code=400, detail="Nur PDF-Dateien sind erlaubt")
     
-    # Check for duplicate filename
     existing_doc = await db.documents.find_one({"filename": file.filename})
     if existing_doc and not force:
         raise HTTPException(
             status_code=409, 
-            detail=f"Eine Datei mit dem Namen '{file.filename}' existiert bereits. Verwenden Sie force=true zum Überschreiben."
+            detail=f"Eine Datei mit dem Namen '{file.filename}' existiert bereits."
         )
     
-    # If force=true and file exists, delete the old one
     if existing_doc and force:
         old_path = existing_doc.get("file_path")
         if old_path and os.path.exists(old_path):
             os.remove(old_path)
         await db.documents.delete_one({"document_id": existing_doc["document_id"]})
     
-    # Save file permanently for embedding
     content = await file.read()
     doc_id = f"doc_{uuid.uuid4().hex[:12]}"
     permanent_path = f"/tmp/pdfs/{doc_id}.pdf"
     
-    # Create directory if needed
     os.makedirs("/tmp/pdfs", exist_ok=True)
     
     with open(permanent_path, "wb") as f:
         f.write(content)
     
-    # Create document record
     doc = Document(
         document_id=doc_id,
         filename=file.filename,
@@ -753,60 +743,52 @@ async def upload_document(
     )
     doc_dict = doc.model_dump()
     doc_dict["created_at"] = doc_dict["created_at"].isoformat()
-    doc_dict["file_path"] = permanent_path  # Keep for embedding
+    doc_dict["file_path"] = permanent_path
     doc_dict["file_size"] = len(content)
     
     await db.documents.insert_one(doc_dict)
     
-    # Start async processing
     asyncio.create_task(process_document(doc_id, permanent_path, target_language))
     
     return {
         "document_id": doc_id,
         "filename": doc.filename,
         "status": "pending",
-        "message": "Document uploaded and processing started"
+        "message": "Dokument wird verarbeitet"
     }
 
 async def process_document(document_id: str, file_path: str, target_language: str):
-    """Process PDF document: extract text, images, tables - keep original layout"""
+    """Process PDF document: extract text and tables"""
     try:
         await db.documents.update_one(
             {"document_id": document_id},
             {"$set": {"status": "processing"}}
         )
         
-        # Extract text, tables, and images from PDF
         extracted_text = ""
-        html_content = ""  # HTML representation of PDF content
+        html_content = ""
         page_count = 0
         extracted_tables = []
-        extracted_images = []
         
         with pdfplumber.open(file_path) as pdf:
             page_count = len(pdf.pages)
             for page_num, page in enumerate(pdf.pages, 1):
                 html_content += f"<div class='pdf-page' data-page='{page_num}'>"
                 
-                # Extract text with layout preservation
                 text = page.extract_text()
                 if text:
                     extracted_text += f"--- Seite {page_num} ---\n{text}\n\n"
-                    # Convert paragraphs to HTML
                     paragraphs = text.split('\n\n')
                     for para in paragraphs:
                         if para.strip():
-                            # Check if it looks like a heading (short, possibly uppercase)
                             if len(para.strip()) < 100 and para.strip().isupper():
                                 html_content += f"<h3>{para.strip()}</h3>"
                             else:
                                 html_content += f"<p>{para.strip()}</p>"
                 
-                # Extract tables with better formatting
                 tables = page.extract_tables()
                 for table_idx, table in enumerate(tables):
                     if table and len(table) > 0:
-                        # Convert table to styled HTML
                         table_html = "<table class='w-full border-collapse my-4 text-sm'>"
                         for row_idx, row in enumerate(table):
                             if row:
@@ -822,59 +804,29 @@ async def process_document(document_id: str, file_path: str, target_language: st
                         extracted_tables.append({
                             "page": page_num,
                             "index": table_idx,
-                            "html": table_html,
-                            "rows": len(table),
-                            "cols": len(table[0]) if table else 0
+                            "html": table_html
                         })
                         html_content += table_html
                 
                 html_content += "</div>"
         
         if not extracted_text.strip():
-            raise Exception("No text could be extracted from PDF")
-        
-        # Detect language using simple heuristics
-        german_words = ["und", "der", "die", "das", "ist", "für", "von", "mit", "auf", "ein"]
-        english_words = ["and", "the", "is", "for", "of", "with", "on", "a", "an", "to"]
-        text_lower = extracted_text.lower()
-        german_count = sum(1 for w in german_words if f" {w} " in text_lower)
-        english_count = sum(1 for w in english_words if f" {w} " in text_lower)
-        original_language = "Deutsch" if german_count > english_count else "Englisch"
-        
-        # Translate if needed
-        if target_language == "de" and original_language.lower() not in ["deutsch", "german", "de"]:
-            chat = LlmChat(
-                api_key=EMERGENT_LLM_KEY,
-                session_id=f"doc_{document_id}",
-                system_message="Du bist ein professioneller Übersetzer. Übersetze Texte präzise ins Deutsche."
-            ).with_model("gemini", "gemini-3-flash-preview")
-            
-            translate_prompt = f"""Übersetze den folgenden Text ins Deutsche. 
-Behalte die Struktur und Formatierung bei. Übersetze nur den Text, keine HTML-Tags ändern.
-
-{extracted_text[:6000]}"""
-            
-            translate_message = UserMessage(text=translate_prompt)
-            translated_text = await chat.send_message(translate_message)
-            extracted_text = translated_text
+            raise Exception("Kein Text konnte aus dem PDF extrahiert werden")
         
         structured_content = {
             "headlines": [],
             "bulletpoints": [],
             "tables": extracted_tables,
-            "images": extracted_images,
+            "images": [],
             "html_content": html_content
         }
         
-        # Update document - NO SUMMARY generated
         await db.documents.update_one(
             {"document_id": document_id},
             {"$set": {
                 "status": "completed",
                 "page_count": page_count,
-                "original_language": original_language,
                 "extracted_text": extracted_text,
-                "summary": None,  # No auto-summary
                 "structured_content": structured_content,
                 "processed_at": datetime.now(timezone.utc).isoformat()
             }}
@@ -903,73 +855,42 @@ async def get_document(document_id: str, user: User = Depends(get_current_user))
     """Get document details"""
     doc = await db.documents.find_one({"document_id": document_id}, {"_id": 0, "temp_path": 0})
     if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
+        raise HTTPException(status_code=404, detail="Dokument nicht gefunden")
     return doc
 
 @api_router.delete("/documents/{document_id}")
 async def delete_document(document_id: str, user: User = Depends(get_current_user)):
     """Delete a document (admin only)"""
     if user.role != "admin":
-        raise HTTPException(status_code=403, detail="Only admins can delete documents")
+        raise HTTPException(status_code=403, detail="Nur Administratoren können Dokumente löschen")
     
     doc = await db.documents.find_one({"document_id": document_id})
     if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
+        raise HTTPException(status_code=404, detail="Dokument nicht gefunden")
     
-    # Delete PDF file if exists
     file_path = doc.get("file_path") or doc.get("temp_path")
-    if file_path:
+    if file_path and os.path.exists(file_path):
         try:
-            import os
-            if os.path.exists(file_path):
-                os.remove(file_path)
+            os.remove(file_path)
         except Exception:
             pass
     
     await db.documents.delete_one({"document_id": document_id})
-    return {"message": "Document deleted"}
-
-@api_router.get("/documents/{document_id}/pdf")
-async def get_document_pdf(document_id: str, user: User = Depends(get_current_user)):
-    """Get PDF file for embedding/viewing"""
-    from fastapi.responses import Response
-    
-    doc = await db.documents.find_one({"document_id": document_id})
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
-    
-    file_path = doc.get("file_path")
-    if not file_path or not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="PDF file not found")
-    
-    # Read file and return with inline disposition
-    with open(file_path, "rb") as f:
-        content = f.read()
-    
-    return Response(
-        content=content,
-        media_type="application/pdf",
-        headers={
-            "Content-Disposition": f"inline; filename=\"{doc.get('filename', 'document.pdf')}\"",
-            "Cache-Control": "public, max-age=3600"
-        }
-    )
+    return {"message": "Dokument gelöscht"}
 
 @api_router.get("/documents/{document_id}/pdf-embed")
 async def get_document_pdf_embed(document_id: str, token: str = None):
-    """Get PDF file for iframe embedding (public with token)"""
+    """Get PDF file for iframe embedding"""
     from fastapi.responses import Response
     
-    # Validate token if provided (simple document_id check for now)
     doc = await db.documents.find_one({"document_id": document_id})
     if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
+        raise HTTPException(status_code=404, detail="Dokument nicht gefunden")
     
     file_path = doc.get("file_path")
     if not file_path or not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="PDF file not found")
+        raise HTTPException(status_code=404, detail="PDF-Datei nicht gefunden")
     
-    # Read file and return with inline disposition for embedding
     with open(file_path, "rb") as f:
         content = f.read()
     
@@ -983,417 +904,30 @@ async def get_document_pdf_embed(document_id: str, token: str = None):
         }
     )
 
-@api_router.post("/documents/{document_id}/create-article")
-async def create_article_from_document(
-    document_id: str,
-    title: Optional[str] = None,
-    category_id: Optional[str] = None,
-    user: User = Depends(get_current_user)
-):
-    """Create a knowledge article from processed document"""
-    doc = await db.documents.find_one({"document_id": document_id}, {"_id": 0})
-    if not doc:
-        raise HTTPException(status_code=404, detail="Document not found")
-    
-    if doc["status"] != "completed":
-        raise HTTPException(status_code=400, detail="Document not yet processed")
-    
-    # Create article
-    article_title = title or doc["filename"].replace(".pdf", "")
-    content = f"""## Zusammenfassung
-
-{doc.get('summary', '')}
-
-## Hauptpunkte
-
-"""
-    for point in doc.get("structured_content", {}).get("bulletpoints", []):
-        content += f"- {point}\n"
-    
-    content += f"""
-
-## Vollständiger Inhalt
-
-{doc.get('extracted_text', '')[:10000]}
-"""
-    
-    article = ArticleCreate(
-        title=article_title,
-        content=content,
-        summary=doc.get("summary"),
-        category_id=category_id,
-        status="draft"
-    )
-    
-    return await create_article(article, user)
-
-# ==================== SEARCH & RAG ====================
-
-async def get_embedding(text: str) -> List[float]:
-    """Get embedding for text using Gemini"""
-    # For now, use a simple hash-based pseudo-embedding for demo
-    # In production, use proper embedding model
-    import hashlib
-    hash_obj = hashlib.sha256(text.encode())
-    hash_bytes = hash_obj.digest()
-    # Convert to 1536-dimensional vector (OpenAI embedding dimension)
-    embedding = []
-    for i in range(1536):
-        byte_idx = i % 32
-        embedding.append((hash_bytes[byte_idx] / 255.0) * 2 - 1)
-    return embedding
-
-async def index_article_in_pinecone(article_id: str, title: str, content: str):
-    """Index article content in Pinecone"""
-    if not pinecone_index:
-        return
-    
-    try:
-        # Split content into chunks
-        splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000,
-            chunk_overlap=100
-        )
-        chunks = splitter.split_text(f"{title}\n\n{content}")
-        
-        # Create vectors for each chunk
-        vectors = []
-        for i, chunk in enumerate(chunks[:10]):  # Limit to 10 chunks per article
-            embedding = await get_embedding(chunk)
-            vectors.append({
-                "id": f"{article_id}_chunk_{i}",
-                "values": embedding,
-                "metadata": {
-                    "article_id": article_id,
-                    "title": title,
-                    "chunk": chunk[:500],
-                    "chunk_index": i
-                }
-            })
-        
-        pinecone_index.upsert(vectors=vectors, namespace="articles")
-        logger.info(f"Indexed {len(vectors)} chunks for article {article_id}")
-        
-    except Exception as e:
-        logger.error(f"Failed to index article: {e}")
-
-@api_router.post("/search", response_model=AIAnswer)
-async def semantic_search(
-    query: SearchQuery,
-    user: User = Depends(get_current_user)
-):
-    """Perform semantic search and generate AI answer"""
-    sources = []
-    seen_articles = set()
-    
-    # Extract key terms for strict matching
-    query_lower = query.query.lower()
-    key_terms = [w for w in query_lower.split() if len(w) > 3]
-    
-    # First: MongoDB keyword search with strict relevance scoring
-    mongo_query = {"$or": [
-        {"title": {"$regex": query.query, "$options": "i"}},
-        {"content": {"$regex": query.query, "$options": "i"}},
-        {"summary": {"$regex": query.query, "$options": "i"}},
-        {"tags": {"$in": key_terms}}
-    ]}
-    
-    keyword_articles = await db.articles.find(mongo_query, {"_id": 0}).limit(query.top_k * 3).to_list(query.top_k * 3)
-    
-    for art in keyword_articles:
-        if art["article_id"] not in seen_articles:
-            # Calculate relevance score based on keyword presence
-            title_lower = art["title"].lower()
-            content_lower = art.get("content", "").lower()
-            
-            # Count how many key terms appear in title/content
-            title_matches = sum(1 for term in key_terms if term in title_lower)
-            content_matches = sum(1 for term in key_terms if term in content_lower)
-            
-            # Skip if no key terms match at all
-            if title_matches == 0 and content_matches == 0:
-                continue
-            
-            # Calculate score: title matches are worth more
-            score = (title_matches * 0.3 + content_matches * 0.1) / max(len(key_terms), 1)
-            score = min(score + 0.5, 1.0)  # Base score + matches
-            
-            # Find the best matching snippet from content
-            snippet = art.get("summary", "")
-            content = art.get("content", "")
-            
-            # Find snippet containing query terms
-            for term in key_terms:
-                if term in content_lower:
-                    idx = content_lower.find(term)
-                    start = max(0, idx - 100)
-                    end = min(len(content), idx + 200)
-                    snippet = "..." + content[start:end].strip() + "..."
-                    break
-            
-            seen_articles.add(art["article_id"])
-            sources.append(SearchResult(
-                article_id=art["article_id"],
-                title=art["title"],
-                content_snippet=snippet[:300] if snippet else content[:300],
-                score=score
-            ))
-    
-    # Second: Semantic search in Pinecone (only if we need more results)
-    if pinecone_index and len(sources) < query.top_k:
-        try:
-            query_embedding = await get_embedding(query.query)
-            results = pinecone_index.query(
-                vector=query_embedding,
-                top_k=query.top_k,
-                include_metadata=True,
-                namespace="articles"
-            )
-            
-            for match in results.matches:
-                article_id = match.metadata.get("article_id")
-                # Only add if highly relevant (score > 0.7) and not already in results
-                if article_id and article_id not in seen_articles and match.score > 0.7:
-                    seen_articles.add(article_id)
-                    sources.append(SearchResult(
-                        article_id=article_id,
-                        title=match.metadata.get("title", ""),
-                        content_snippet=match.metadata.get("chunk", "")[:300],
-                        score=match.score * 0.6  # Lower weight for semantic-only matches
-                    ))
-        except Exception as e:
-            logger.error(f"Pinecone search failed: {e}")
-    
-    # Sort by score descending and limit
-    sources = sorted(sources, key=lambda x: x.score, reverse=True)[:query.top_k]
-    
-    # Generate AI answer - only use top 3 most relevant sources
-    top_sources = sources[:3]
-    context = "\n\n".join([f"### {s.title} (Relevanz: {int(s.score*100)}%)\n{s.content_snippet}" for s in top_sources])
-    
-    if context and top_sources:
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=f"search_{uuid.uuid4().hex[:8]}",
-            system_message="Du bist ein präziser Wissensassistent für CANUSA Reiseinformationen. Beantworte NUR basierend auf den bereitgestellten Quellen. Wenn die Quellen keine relevante Information enthalten, sage das klar. Antworte auf Deutsch."
-        ).with_model("gemini", "gemini-3-flash-preview")
-        
-        answer_prompt = f"""Beantworte die folgende Frage NUR basierend auf den bereitgestellten Quellen.
-Ignoriere Informationen, die nicht zur Frage passen.
-
-QUELLEN:
-{context}
-
-FRAGE: {query.query}
-
-REGELN:
-1. Nutze NUR Informationen aus den Quellen, die direkt zur Frage passen
-2. Wenn keine Quelle zur Frage passt, sage: "Die gefundenen Artikel enthalten keine spezifischen Informationen zu dieser Frage."
-3. Nenne die relevante Quelle in deiner Antwort
-4. Sei präzise und vermeide Spekulationen"""
-        
-        try:
-            answer_message = UserMessage(text=answer_prompt)
-            ai_answer = await chat.send_message(answer_message)
-        except Exception as e:
-            logger.error(f"AI answer generation failed: {e}")
-            ai_answer = "Die Suche hat relevante Artikel gefunden. Bitte prüfen Sie die Quellen unten."
-    else:
-        ai_answer = "Leider konnte ich keine relevanten Artikel zu Ihrer Anfrage finden. Versuchen Sie andere Suchbegriffe."
-    
-    return AIAnswer(
-        answer=ai_answer,
-        sources=sources,
-        query=query.query
-    )
-
-# ==================== STATISTICS ====================
-
-@api_router.get("/stats")
-async def get_stats(user: User = Depends(get_current_user)):
-    """Get dashboard statistics"""
-    total_articles = await db.articles.count_documents({})
-    published_articles = await db.articles.count_documents({"status": "published"})
-    draft_articles = await db.articles.count_documents({"status": "draft"})
-    review_articles = await db.articles.count_documents({"status": "review"})
-    total_categories = await db.categories.count_documents({})
-    total_documents = await db.documents.count_documents({})
-    pending_documents = await db.documents.count_documents({"status": "pending"})
-    
-    # Get recent articles
-    recent_articles = await db.articles.find({}, {"_id": 0}).sort("updated_at", -1).limit(5).to_list(5)
-    
-    # Get top viewed articles (Beliebteste Artikel)
-    top_articles = await db.articles.find({}, {"_id": 0}).sort("view_count", -1).limit(5).to_list(5)
-    
-    # Get favorite articles for current user
-    favorite_articles = await db.articles.find(
-        {"favorited_by": user.user_id},
-        {"_id": 0}
-    ).sort("updated_at", -1).limit(5).to_list(5)
-    
-    # Get recently viewed articles (15 for scrollable list)
-    user_data = await db.users.find_one({"user_id": user.user_id}, {"_id": 0, "recently_viewed": 1})
-    recently_viewed_ids = user_data.get("recently_viewed", [])[:15] if user_data else []
-    recently_viewed = []
-    if recently_viewed_ids:
-        for article_id in recently_viewed_ids:
-            article = await db.articles.find_one({"article_id": article_id}, {"_id": 0})
-            if article:
-                recently_viewed.append(article)
-    
-    # User stats
-    user_articles_count = await db.articles.count_documents({"created_by": user.user_id})
-    user_documents_count = await db.documents.count_documents({"uploaded_by": user.user_id})
-    
-    return {
-        "total_articles": total_articles,
-        "published_articles": published_articles,
-        "draft_articles": draft_articles,
-        "review_articles": review_articles,
-        "total_categories": total_categories,
-        "total_documents": total_documents,
-        "pending_documents": pending_documents,
-        "recent_articles": recent_articles,
-        "top_articles": top_articles,
-        "favorite_articles": favorite_articles,
-        "recently_viewed": recently_viewed,
-        "user_stats": {
-            "articles_created": user_articles_count,
-            "documents_uploaded": user_documents_count
-        }
-    }
-
-# ==================== FAVORITES ====================
-
-@api_router.post("/articles/{article_id}/favorite")
-async def toggle_favorite(article_id: str, user: User = Depends(get_current_user)):
-    """Toggle favorite status for an article"""
-    article = await db.articles.find_one({"article_id": article_id}, {"_id": 0})
-    if not article:
-        raise HTTPException(status_code=404, detail="Article not found")
-    
-    favorited_by = article.get("favorited_by", [])
-    
-    if user.user_id in favorited_by:
-        # Remove from favorites
-        await db.articles.update_one(
-            {"article_id": article_id},
-            {"$pull": {"favorited_by": user.user_id}}
-        )
-        return {"favorited": False, "message": "Aus Favoriten entfernt"}
-    else:
-        # Add to favorites
-        await db.articles.update_one(
-            {"article_id": article_id},
-            {"$addToSet": {"favorited_by": user.user_id}}
-        )
-        return {"favorited": True, "message": "Zu Favoriten hinzugefügt"}
-
-@api_router.get("/favorites")
-async def get_favorites(user: User = Depends(get_current_user)):
-    """Get all favorite articles for current user"""
-    articles = await db.articles.find(
-        {"favorited_by": user.user_id},
-        {"_id": 0}
-    ).sort("updated_at", -1).to_list(100)
-    return articles
-
-# ==================== RECENTLY VIEWED ====================
-
-@api_router.post("/articles/{article_id}/viewed")
-async def mark_as_viewed(article_id: str, user: User = Depends(get_current_user)):
-    """Mark article as viewed and update recently viewed list + view count"""
-    # Remove if already in list, then add to front
-    await db.users.update_one(
-        {"user_id": user.user_id},
-        {"$pull": {"recently_viewed": article_id}}
-    )
-    await db.users.update_one(
-        {"user_id": user.user_id},
-        {"$push": {"recently_viewed": {"$each": [article_id], "$position": 0, "$slice": 20}}}
-    )
-    # Increment view count on article
-    await db.articles.update_one(
-        {"article_id": article_id},
-        {"$inc": {"view_count": 1}}
-    )
-    return {"message": "Marked as viewed"}
-
-# ==================== PRESENCE / ACTIVE EDITORS ====================
-
-@api_router.post("/articles/{article_id}/presence")
-async def update_presence(article_id: str, user: User = Depends(get_current_user)):
-    """Update editor presence for an article"""
-    global active_editors
-    
-    if article_id not in active_editors:
-        active_editors[article_id] = {}
-    
-    active_editors[article_id][user.user_id] = {
-        "name": user.name,
-        "picture": user.picture,
-        "timestamp": datetime.now(timezone.utc).isoformat()
-    }
-    
-    # Clean up old entries (older than 30 seconds)
-    cutoff = datetime.now(timezone.utc) - timedelta(seconds=30)
-    for uid in list(active_editors[article_id].keys()):
-        ts = datetime.fromisoformat(active_editors[article_id][uid]["timestamp"])
-        if ts < cutoff:
-            del active_editors[article_id][uid]
-    
-    # Return other active editors (excluding current user)
-    others = {uid: info for uid, info in active_editors[article_id].items() if uid != user.user_id}
-    
-    return {"active_editors": list(others.values())}
-
-@api_router.delete("/articles/{article_id}/presence")
-async def remove_presence(article_id: str, user: User = Depends(get_current_user)):
-    """Remove editor presence when leaving article"""
-    global active_editors
-    
-    if article_id in active_editors and user.user_id in active_editors[article_id]:
-        del active_editors[article_id][user.user_id]
-    
-    return {"message": "Presence removed"}
-
 # ==================== IMAGE UPLOAD ====================
 
 @api_router.post("/images/upload")
-async def upload_image(
-    file: UploadFile = File(...),
-    user: User = Depends(get_current_user)
-):
+async def upload_image(file: UploadFile = File(...), user: User = Depends(get_current_user)):
     """Upload an image for use in articles"""
-    # Validate file type
     allowed_types = ["image/jpeg", "image/png", "image/gif", "image/webp"]
     if file.content_type not in allowed_types:
-        raise HTTPException(
-            status_code=400, 
-            detail="Nur Bilder sind erlaubt (JPEG, PNG, GIF, WebP)"
-        )
+        raise HTTPException(status_code=400, detail="Nur Bilder sind erlaubt (JPEG, PNG, GIF, WebP)")
     
-    # Limit file size (10MB)
     content = await file.read()
     if len(content) > 10 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="Bild darf maximal 10MB groß sein")
     
-    # Create images directory if needed
     images_dir = "/tmp/images"
     os.makedirs(images_dir, exist_ok=True)
     
-    # Generate unique filename
     ext = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
     image_id = f"img_{uuid.uuid4().hex[:12]}"
     filename = f"{image_id}.{ext}"
     file_path = f"{images_dir}/{filename}"
     
-    # Save file
     with open(file_path, "wb") as f:
         f.write(content)
     
-    # Store in database for tracking
     image_doc = {
         "image_id": image_id,
         "filename": filename,
@@ -1406,7 +940,6 @@ async def upload_image(
     }
     await db.images.insert_one(image_doc)
     
-    # Return URL for the image
     return {
         "image_id": image_id,
         "url": f"/api/images/{image_id}",
@@ -1438,6 +971,144 @@ async def get_image(image_id: str):
         }
     )
 
+# ==================== STATISTICS ====================
+
+@api_router.get("/stats")
+async def get_stats(user: User = Depends(get_current_user)):
+    """Get dashboard statistics"""
+    total_articles = await db.articles.count_documents({})
+    published_articles = await db.articles.count_documents({"status": "published"})
+    draft_articles = await db.articles.count_documents({"status": "draft"})
+    review_articles = await db.articles.count_documents({"status": "review"})
+    total_categories = await db.categories.count_documents({})
+    total_documents = await db.documents.count_documents({})
+    pending_documents = await db.documents.count_documents({"status": "pending"})
+    
+    recent_articles = await db.articles.find({}, {"_id": 0}).sort("updated_at", -1).limit(5).to_list(5)
+    top_articles = await db.articles.find({}, {"_id": 0}).sort("view_count", -1).limit(5).to_list(5)
+    
+    favorite_articles = await db.articles.find(
+        {"favorited_by": user.user_id},
+        {"_id": 0}
+    ).sort("updated_at", -1).limit(5).to_list(5)
+    
+    user_data = await db.users.find_one({"user_id": user.user_id}, {"_id": 0, "recently_viewed": 1})
+    recently_viewed_ids = user_data.get("recently_viewed", [])[:15] if user_data else []
+    recently_viewed = []
+    if recently_viewed_ids:
+        for article_id in recently_viewed_ids:
+            article = await db.articles.find_one({"article_id": article_id}, {"_id": 0})
+            if article:
+                recently_viewed.append(article)
+    
+    user_articles_count = await db.articles.count_documents({"created_by": user.user_id})
+    user_documents_count = await db.documents.count_documents({"uploaded_by": user.user_id})
+    
+    return {
+        "total_articles": total_articles,
+        "published_articles": published_articles,
+        "draft_articles": draft_articles,
+        "review_articles": review_articles,
+        "total_categories": total_categories,
+        "total_documents": total_documents,
+        "pending_documents": pending_documents,
+        "recent_articles": recent_articles,
+        "top_articles": top_articles,
+        "favorite_articles": favorite_articles,
+        "recently_viewed": recently_viewed,
+        "user_stats": {
+            "articles_created": user_articles_count,
+            "documents_uploaded": user_documents_count
+        }
+    }
+
+# ==================== FAVORITES ====================
+
+@api_router.post("/articles/{article_id}/favorite")
+async def toggle_favorite(article_id: str, user: User = Depends(get_current_user)):
+    """Toggle favorite status for an article"""
+    article = await db.articles.find_one({"article_id": article_id}, {"_id": 0})
+    if not article:
+        raise HTTPException(status_code=404, detail="Artikel nicht gefunden")
+    
+    favorited_by = article.get("favorited_by", [])
+    
+    if user.user_id in favorited_by:
+        await db.articles.update_one(
+            {"article_id": article_id},
+            {"$pull": {"favorited_by": user.user_id}}
+        )
+        return {"favorited": False, "message": "Aus Favoriten entfernt"}
+    else:
+        await db.articles.update_one(
+            {"article_id": article_id},
+            {"$addToSet": {"favorited_by": user.user_id}}
+        )
+        return {"favorited": True, "message": "Zu Favoriten hinzugefügt"}
+
+@api_router.get("/favorites")
+async def get_favorites(user: User = Depends(get_current_user)):
+    """Get all favorite articles for current user"""
+    articles = await db.articles.find(
+        {"favorited_by": user.user_id},
+        {"_id": 0}
+    ).sort("updated_at", -1).to_list(100)
+    return articles
+
+# ==================== RECENTLY VIEWED ====================
+
+@api_router.post("/articles/{article_id}/viewed")
+async def mark_as_viewed(article_id: str, user: User = Depends(get_current_user)):
+    """Mark article as viewed and update recently viewed list"""
+    await db.users.update_one(
+        {"user_id": user.user_id},
+        {"$pull": {"recently_viewed": article_id}}
+    )
+    await db.users.update_one(
+        {"user_id": user.user_id},
+        {"$push": {"recently_viewed": {"$each": [article_id], "$position": 0, "$slice": 20}}}
+    )
+    await db.articles.update_one(
+        {"article_id": article_id},
+        {"$inc": {"view_count": 1}}
+    )
+    return {"message": "Als angesehen markiert"}
+
+# ==================== PRESENCE / ACTIVE EDITORS ====================
+
+@api_router.post("/articles/{article_id}/presence")
+async def update_presence(article_id: str, user: User = Depends(get_current_user)):
+    """Update editor presence for an article"""
+    global active_editors
+    
+    if article_id not in active_editors:
+        active_editors[article_id] = {}
+    
+    active_editors[article_id][user.user_id] = {
+        "name": user.name,
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+    
+    cutoff = datetime.now(timezone.utc) - timedelta(seconds=30)
+    for uid in list(active_editors[article_id].keys()):
+        ts = datetime.fromisoformat(active_editors[article_id][uid]["timestamp"])
+        if ts < cutoff:
+            del active_editors[article_id][uid]
+    
+    others = {uid: info for uid, info in active_editors[article_id].items() if uid != user.user_id}
+    
+    return {"active_editors": list(others.values())}
+
+@api_router.delete("/articles/{article_id}/presence")
+async def remove_presence(article_id: str, user: User = Depends(get_current_user)):
+    """Remove editor presence when leaving article"""
+    global active_editors
+    
+    if article_id in active_editors and user.user_id in active_editors[article_id]:
+        del active_editors[article_id][user.user_id]
+    
+    return {"message": "Präsenz entfernt"}
+
 # ==================== WIDGET API ====================
 
 @api_router.get("/widget/search")
@@ -1464,14 +1135,14 @@ async def widget_get_article(article_id: str):
         {"_id": 0, "article_id": 1, "title": 1, "content": 1, "summary": 1}
     )
     if not article:
-        raise HTTPException(status_code=404, detail="Article not found")
+        raise HTTPException(status_code=404, detail="Artikel nicht gefunden")
     return article
 
 # ==================== ROOT ====================
 
 @api_router.get("/")
 async def root():
-    return {"message": "CANUSA Knowledge Hub API", "version": "1.0.0"}
+    return {"message": "CANUSA Knowledge Hub API", "version": "2.0.0"}
 
 # Include the router in the main app
 app.include_router(api_router)
@@ -1486,43 +1157,29 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup():
-    """Initialize Pinecone on startup"""
-    global pc, pinecone_index
-    
-    if PINECONE_API_KEY:
-        try:
-            pc = Pinecone(api_key=PINECONE_API_KEY)
-            
-            # Check if index exists, create if not
-            existing_indexes = [idx.name for idx in pc.list_indexes()]
-            
-            if INDEX_NAME not in existing_indexes:
-                pc.create_index(
-                    name=INDEX_NAME,
-                    dimension=1536,
-                    metric="cosine",
-                    spec={
-                        "serverless": {
-                            "cloud": "aws",
-                            "region": "us-east-1"
-                        }
-                    }
-                )
-                logger.info(f"Created Pinecone index: {INDEX_NAME}")
-            
-            pinecone_index = pc.Index(INDEX_NAME)
-            logger.info("Pinecone initialized successfully")
-        except Exception as e:
-            logger.error(f"Failed to initialize Pinecone: {e}")
-    else:
-        logger.warning("PINECONE_API_KEY not set, vector search disabled")
-    
-    # Create indexes in MongoDB
+    """Initialize database and create default admin"""
+    # Create indexes
     await db.articles.create_index([("title", "text"), ("content", "text")])
     await db.articles.create_index("status")
     await db.articles.create_index("category_id")
     await db.users.create_index("email", unique=True)
     await db.user_sessions.create_index("session_token")
+    
+    # Create default admin user if not exists
+    admin_exists = await db.users.find_one({"email": DEFAULT_ADMIN_EMAIL})
+    if not admin_exists:
+        admin_user = {
+            "user_id": f"user_{uuid.uuid4().hex[:12]}",
+            "email": DEFAULT_ADMIN_EMAIL,
+            "name": DEFAULT_ADMIN_NAME,
+            "password_hash": get_password_hash(DEFAULT_ADMIN_PASSWORD),
+            "role": "admin",
+            "is_blocked": False,
+            "recently_viewed": [],
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.users.insert_one(admin_user)
+        logger.info(f"Default admin user created: {DEFAULT_ADMIN_EMAIL}")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
