@@ -392,6 +392,17 @@ const UserManagement = () => {
                           <Button
                             variant="ghost"
                             size="sm"
+                            onClick={() => setPasswordDialog({ open: true, user })}
+                            disabled={user.user_id === currentUser?.user_id}
+                            className="text-slate-600"
+                            data-testid={`password-user-${user.user_id}`}
+                          >
+                            <Lock className="w-4 h-4 mr-2" />
+                            Passwort
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => handleOpenEdit(user)}
                             disabled={user.user_id === currentUser?.user_id}
                             data-testid={`edit-user-${user.user_id}`}
