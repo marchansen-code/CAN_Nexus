@@ -1,65 +1,26 @@
-import React, { useState, useContext, useEffect } from "react";
-import axios from "axios";
+import React, { useState, useContext } from "react";
 import { AuthContext, API } from "@/App";
 import { toast } from "sonner";
 import {
-  Settings as SettingsIcon,
   User,
   Code,
   Copy,
   Check,
   ExternalLink,
-  Globe,
-  Shield,
-  LogIn
+  Globe
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 
 const Settings = () => {
   const { user } = useContext(AuthContext);
   const [copied, setCopied] = useState(null);
-  const [stayLoggedIn, setStayLoggedIn] = useState(false);
-  const [updatingSession, setUpdatingSession] = useState(false);
 
   const backendUrl = process.env.REACT_APP_BACKEND_URL;
 
-  // Load preference from localStorage
-  useEffect(() => {
-    const savedPref = localStorage.getItem('stayLoggedIn');
-    setStayLoggedIn(savedPref === 'true');
-  }, []);
-
-  const handleStayLoggedInChange = async (checked) => {
-    setUpdatingSession(true);
-    try {
-      // Save preference locally
-      localStorage.setItem('stayLoggedIn', checked.toString());
-      setStayLoggedIn(checked);
-      
-      // Update session on backend
-      await axios.post(`${API}/auth/extend-session`, {
-        extend: checked
-      });
-      
-      toast.success(checked 
-        ? "Angemeldet bleiben aktiviert (30 Tage)" 
-        : "Session-Dauer zurückgesetzt (7 Tage)"
-      );
-    } catch (error) {
-      console.error("Failed to update session:", error);
-      toast.error("Einstellung konnte nicht gespeichert werden");
-    } finally {
-      setUpdatingSession(false);
-    }
-  };
-
-  const widgetCode = `<!-- Smart Knowledge Nexus Widget -->
+  const widgetCode = `<!-- CANUSA Nexus Widget -->
 <div id="knowledge-widget"></div>
 <script>
 (function() {
@@ -74,7 +35,6 @@ const Settings = () => {
       var q = e.target.value;
       var res = await fetch('${backendUrl}/api/widget/search?q=' + encodeURIComponent(q));
       var data = await res.json();
-      // Handle results
       console.log(data);
     }
   });
@@ -92,6 +52,15 @@ const Settings = () => {
     } catch (error) {
       toast.error("Kopieren fehlgeschlagen");
     }
+  };
+
+  const getRoleLabel = (role) => {
+    const labels = {
+      admin: "Administrator",
+      editor: "Editor",
+      viewer: "Betrachter"
+    };
+    return labels[role] || role;
   };
 
   return (
@@ -124,63 +93,29 @@ const Settings = () => {
             <CardHeader>
               <CardTitle>Profil-Informationen</CardTitle>
               <CardDescription>
-                Ihre Kontodaten aus der Google-Anmeldung
+                Ihre Kontodaten
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center gap-4">
-                {user?.picture && (
-                  <img 
-                    src={user.picture} 
-                    alt={user.name} 
-                    className="w-16 h-16 rounded-full"
-                  />
-                )}
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center text-white text-xl font-bold">
+                  {user?.name?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "?"}
+                </div>
                 <div>
                   <p className="font-semibold text-lg">{user?.name}</p>
                   <p className="text-muted-foreground">{user?.email}</p>
                   <Badge variant="outline" className="mt-2">
-                    {user?.role === "admin" ? "Administrator" : user?.role === "editor" ? "Editor" : "Viewer"}
+                    {getRoleLabel(user?.role)}
                   </Badge>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Session Settings */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <LogIn className="w-5 h-5" />
-                Anmeldung & Sitzung
-              </CardTitle>
-              <CardDescription>
-                Einstellungen für Ihre Anmeldesitzung
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                <div className="space-y-1">
-                  <Label htmlFor="stay-logged-in" className="font-medium">
-                    Angemeldet bleiben
-                  </Label>
-                  <p className="text-sm text-muted-foreground">
-                    {stayLoggedIn 
-                      ? "Ihre Sitzung bleibt 30 Tage aktiv" 
-                      : "Ihre Sitzung läuft nach 7 Tagen ab"}
-                  </p>
-                </div>
-                <Switch
-                  id="stay-logged-in"
-                  checked={stayLoggedIn}
-                  onCheckedChange={handleStayLoggedInChange}
-                  disabled={updatingSession}
-                  data-testid="stay-logged-in-switch"
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Aktivieren Sie diese Option, um länger angemeldet zu bleiben. 
-                Empfohlen für persönliche Geräte. Deaktivieren Sie diese Option auf gemeinsam genutzten Computern.
+          <Card className="border-amber-200 bg-amber-50">
+            <CardContent className="p-4">
+              <p className="text-sm text-amber-800">
+                <strong>Passwort ändern?</strong> Wenden Sie sich an einen Administrator, um Ihr Passwort zurücksetzen zu lassen.
               </p>
             </CardContent>
           </Card>
@@ -270,13 +205,6 @@ const Settings = () => {
                     </>
                   )}
                 </Button>
-              </div>
-              
-              <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                <p className="text-sm text-amber-800">
-                  <strong>Hinweis:</strong> Stellen Sie sicher, dass Ihre Domäne in den CORS-Einstellungen 
-                  freigegeben ist, um das Widget nutzen zu können.
-                </p>
               </div>
             </CardContent>
           </Card>
