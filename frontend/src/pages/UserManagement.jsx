@@ -164,6 +164,54 @@ const UserManagement = () => {
     }
   };
 
+  const handleCreateUser = async () => {
+    if (!newUser.email || !newUser.name || !newUser.password) {
+      toast.error("Bitte alle Felder ausfüllen");
+      return;
+    }
+    if (newUser.password.length < 6) {
+      toast.error("Passwort muss mindestens 6 Zeichen haben");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await axios.post(`${API}/users`, newUser);
+      toast.success("Benutzer erfolgreich angelegt");
+      setCreateDialog(false);
+      setNewUser({ email: "", name: "", password: "", role: "viewer" });
+      fetchUsers();
+    } catch (error) {
+      console.error("Failed to create user:", error);
+      toast.error(error.response?.data?.detail || "Benutzer konnte nicht angelegt werden");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!passwordDialog.user || !newPassword) return;
+    if (newPassword.length < 6) {
+      toast.error("Passwort muss mindestens 6 Zeichen haben");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await axios.put(`${API}/users/${passwordDialog.user.user_id}/password`, {
+        new_password: newPassword
+      });
+      toast.success("Passwort erfolgreich geändert");
+      setPasswordDialog({ open: false, user: null });
+      setNewPassword("");
+    } catch (error) {
+      console.error("Failed to change password:", error);
+      toast.error("Passwort konnte nicht geändert werden");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const filteredUsers = users.filter(user => 
     user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.email?.toLowerCase().includes(searchTerm.toLowerCase())
