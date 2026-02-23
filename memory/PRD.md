@@ -5,82 +5,113 @@ KI-gestützte Wissensmanagement-Plattform für CANUSA Touristik GmbH & Co. KG un
 
 ## Technology Stack
 - **Frontend**: React 18, TailwindCSS, Shadcn/UI, TipTap Rich Editor
-- **Backend**: FastAPI, Python 3.11
-- **Database**: MongoDB, Pinecone (Vektoren)
-- **AI**: Gemini 3 Flash (Emergent LLM Key)
-- **Auth**: Emergent-managed Google OAuth
+- **Backend**: FastAPI, Python 3.11, bcrypt (Passwort-Hashing)
+- **Database**: MongoDB
+- **Auth**: E-Mail/Passwort mit Session-Cookies
 
 ## Implemented Features
 
 ### Core Features
-- ✅ Google Auth mit Domain-Beschränkung (@canusa.de, @cu-travel.com)
+- ✅ E-Mail/Passwort Login (ersetzt Google Auth)
 - ✅ Dashboard mit Statistiken, Favoriten, Beliebteste Artikel
-- ✅ KI-Suche mit Keyword + Semantischer Suche
+- ✅ Keyword-basierte Suche mit Live-Vorschau (ersetzt KI-Suche)
 - ✅ Artikel-CRUD mit Status-Workflow
 - ✅ Kategorieverwaltung (Baumstruktur)
 - ✅ Dark/Light/Auto Theme-Mode
 
 ### Admin Features
+- ✅ Benutzer anlegen mit E-Mail/Passwort
+- ✅ Benutzer-Passwörter ändern
 - ✅ User sperren und löschen
 - ✅ Dokumente löschen
 - ✅ Rollenverwaltung (Admin/Editor/Viewer)
 
 ### PDF Features
 - ✅ PDF-Upload mit Duplikat-Prüfung
-- ✅ PDF-Einbettung als iFrame (öffentlicher Endpoint)
+- ✅ PDF-Einbettung als iFrame
 - ✅ PDF in neuem Tab öffnen
 - ✅ Text-Extraktion mit Layout-Erhaltung
 
-### Iteration 7 (abgeschlossen)
-- ✅ PDF-Duplikat-Prüfung (409 Error mit force=true Override)
-- ✅ PDF-Einbettung funktioniert (Content-Disposition: inline)
-- ✅ Dashboard: 15 "Zuletzt angesehen" mit Scroll (5 sichtbar)
-- ✅ KI-Suche präziser (Keyword-Filtering, Relevanz-Badges)
+### Iteration 9 (23.02.2026 - abgeschlossen)
+**Große Änderungen:**
 
-### Iteration 8 (20.02.2026 - abgeschlossen)
-- ✅ **Bild-Upload im Editor** (P0 Bug Fix)
-  - Backend: `POST /api/images/upload` (PNG/JPEG/GIF/WebP, max 10MB)
-  - Backend: `GET /api/images/{image_id}` (Public, cached)
-  - Frontend: `handleImageUpload` in ArticleEditor.jsx
-  - Frontend: `onImageUpload` prop an RichTextEditor übergeben
-- ✅ **"Angemeldet bleiben" Feature** (P1)
-  - Backend: `POST /api/auth/extend-session` (30 Tage / 7 Tage)
-  - Frontend: Switch in Settings.jsx mit localStorage-Persistenz
+1. **Google Auth → E-Mail/Passwort Login**
+   - Klassisches Login mit E-Mail und Passwort
+   - bcrypt-verschlüsselte Passwörter
+   - "Angemeldet bleiben" Option (7 oder 30 Tage)
+   - Stylische Login-Seite mit CANUSA-Branding
+   - Admins können Benutzer anlegen und Passwörter vergeben
+   - Domain-Beschränkung entfernt
+
+2. **KI-Suche → Ajax-Keyword-Suche**
+   - Pinecone/LLM komplett entfernt
+   - Echtzeit-Suche beim Tippen (300ms Debounce)
+   - MongoDB regex-basierte Suche
+   - Ergebnisse mit Relevanz-Scoring und Highlighting
+   - Schnellsuche für Autocomplete
+
+3. **Docker Deployment Dokumentation**
+   - `/app/deployment/README.md` - Schritt-für-Schritt Anleitung
+   - `docker-compose.yml` - MongoDB, Backend, Frontend
+   - `Dockerfile.backend` und `Dockerfile.frontend`
+   - `nginx.conf` für Production
+   - `.env.example` - Umgebungsvariablen Template
 
 ## API Endpoints
 
-### Images (NEU)
-- `POST /api/images/upload` - Bild hochladen (Auth required)
-- `GET /api/images/{image_id}` - Bild abrufen (Public, 1 Jahr Cache)
+### Auth
+- `POST /api/auth/login` - Login mit E-Mail/Passwort
+- `GET /api/auth/me` - Aktuellen Benutzer abrufen
+- `POST /api/auth/logout` - Logout
 
-### Auth (erweitert)
-- `POST /api/auth/extend-session` - Session verlängern (30d) oder zurücksetzen (7d)
-
-### Documents
-- `POST /api/documents/upload` - Upload (409 bei Duplikat, ?force=true zum Überschreiben)
-- `GET /api/documents/{id}/pdf` - PDF für Auth-User
-- `GET /api/documents/{id}/pdf-embed` - PDF für iFrame (public, inline)
-- `DELETE /api/documents/{id}` - Löschen (Admin only)
-
-### Users
-- `DELETE /api/users/{id}` - User löschen (Admin only)
-- `PUT /api/users/{id}/block` - User sperren/entsperren
+### Users (Admin only)
+- `GET /api/users` - Alle Benutzer auflisten
+- `POST /api/users` - Neuen Benutzer anlegen
+- `PUT /api/users/{id}/role` - Rolle ändern
+- `PUT /api/users/{id}/password` - Passwort ändern
+- `PUT /api/users/{id}/block` - Sperren/Entsperren
+- `DELETE /api/users/{id}` - Benutzer löschen
 
 ### Search
-- `POST /api/search` - Suche mit Keyword-Filtering und Snippet-Highlighting
+- `POST /api/search` - Volltext-Suche mit Scoring
+- `GET /api/search/quick` - Schnellsuche für Autocomplete
 
-### Stats
-- `GET /api/stats` - Enthält 15 recently_viewed Artikel
+### Articles
+- Standard CRUD Endpoints
+
+### Documents
+- PDF Upload, Abruf, Embed, Löschen
+
+### Images
+- Bild-Upload für Editor
+
+## Default Admin
+- **E-Mail**: marc.hansen@canusa.de
+- **Passwort**: CanusaNexus2024!
+- **Rolle**: Administrator
+
+⚠️ **Wichtig**: Passwort nach erstem Login ändern!
 
 ## Test Coverage
-- Backend: 100% (12/12 Tests für Iteration 8)
+- Backend: 100% (28/28 Tests für Iteration 9)
 - Frontend: 100%
-- Last tested: 20.02.2026
+- Last tested: 23.02.2026
+
+## Deployment
+
+### Docker (empfohlen)
+```bash
+cd deployment
+cp .env.example .env
+# .env anpassen
+docker-compose up -d
+```
+
+Siehe `/app/deployment/README.md` für vollständige Anleitung.
 
 ## Backlog
 
 ### P1 (High)
-- [ ] AI-Suche Präzision verbessern (Re-Ranking, Gewichtung)
 - [ ] Hierarchische Kategorie-Verwaltung UI (Add/Edit/Delete)
 - [ ] Bild-Extraktion aus PDFs
 - [ ] OCR für gescannte PDFs
@@ -95,6 +126,4 @@ KI-gestützte Wissensmanagement-Plattform für CANUSA Touristik GmbH & Co. KG un
 ### P3 (Nice to Have)
 - [ ] Mehrsprachige UI
 - [ ] Analytics Dashboard
-
-## Known Issues (Minor)
-- TipTap Console-Warnung: "Duplicate extension names found" (nicht blockierend)
+- [ ] KI-Suche als optionales Feature (später wieder aktivierbar)
