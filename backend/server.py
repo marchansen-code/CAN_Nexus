@@ -1165,9 +1165,24 @@ async def startup():
     await db.users.create_index("email", unique=True)
     await db.user_sessions.create_index("session_token")
     
-    # Create default admin user if not exists
+    # Check for existing admin user
     admin_exists = await db.users.find_one({"email": DEFAULT_ADMIN_EMAIL})
-    if not admin_exists:
+    
+    if admin_exists:
+        # Check if user has password_hash (migration from Google Auth)
+        if not admin_exists.get("password_hash"):
+            logger.info(f"Migrating admin user {DEFAULT_ADMIN_EMAIL} to password auth...")
+            await db.users.update_one(
+                {"email": DEFAULT_ADMIN_EMAIL},
+                {"$set": {
+                    "password_hash": get_password_hash(DEFAULT_ADMIN_PASSWORD),
+                    "role": "admin",
+                    "is_blocked": False
+                }}
+            )
+            logger.info(f"Admin user migrated successfully")
+    else:
+        # Create new admin user
         admin_user = {
             "user_id": f"user_{uuid.uuid4().hex[:12]}",
             "email": DEFAULT_ADMIN_EMAIL,
