@@ -1,236 +1,303 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback, useContext } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { API } from "@/App";
-import { toast } from "sonner";
-import {
-  Search as SearchIcon,
-  Brain,
-  FileText,
-  ExternalLink,
+import { API, AuthContext } from "@/App";
+import { 
+  Search as SearchIcon, 
+  FileText, 
+  Clock, 
+  Tag, 
   Loader2,
-  Sparkles
+  ArrowRight,
+  FolderTree,
+  Eye,
+  X
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+
+// Debounce hook
+const useDebounce = (value, delay) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+
+  return debouncedValue;
+};
 
 const Search = () => {
   const navigate = useNavigate();
+  const { user } = useContext(AuthContext);
   const [query, setQuery] = useState("");
+  const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [recentSearches, setRecentSearches] = useState([]);
 
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    if (!query.trim()) return;
+  const debouncedQuery = useDebounce(query, 300);
+
+  // Load recent searches from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('recentSearches');
+    if (saved) {
+      setRecentSearches(JSON.parse(saved).slice(0, 5));
+    }
+  }, []);
+
+  // Save search to recent
+  const saveSearch = (searchQuery) => {
+    if (!searchQuery.trim()) return;
+    const updated = [searchQuery, ...recentSearches.filter(s => s !== searchQuery)].slice(0, 5);
+    setRecentSearches(updated);
+    localStorage.setItem('recentSearches', JSON.stringify(updated));
+  };
+
+  // Perform search
+  const performSearch = useCallback(async (searchQuery) => {
+    if (!searchQuery || searchQuery.length < 2) {
+      setResults([]);
+      setHasSearched(false);
+      return;
+    }
 
     setLoading(true);
+    setHasSearched(true);
+
     try {
       const response = await axios.post(`${API}/search`, {
-        query: query.trim(),
-        top_k: 5
+        query: searchQuery,
+        top_k: 15
       });
-      setResult(response.data);
+      setResults(response.data.results || []);
+      saveSearch(searchQuery);
     } catch (error) {
       console.error("Search failed:", error);
-      toast.error("Suche fehlgeschlagen. Bitte versuchen Sie es erneut.");
+      setResults([]);
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  // Search on debounced query change
+  useEffect(() => {
+    performSearch(debouncedQuery);
+  }, [debouncedQuery, performSearch]);
+
+  // Handle article click
+  const handleArticleClick = (articleId) => {
+    navigate(`/articles/${articleId}`);
   };
 
-  const exampleQueries = [
-    "Welche Hotels gibt es auf Maui?",
-    "Unternehmungen in Westkanada",
-    "Mietwagen in Kalifornien",
-    "Beste Reisezeit für Alaska"
-  ];
+  // Clear search
+  const clearSearch = () => {
+    setQuery("");
+    setResults([]);
+    setHasSearched(false);
+  };
+
+  // Get status badge color
+  const getStatusBadge = (status) => {
+    const variants = {
+      published: "bg-emerald-100 text-emerald-700 border-emerald-200",
+      draft: "bg-slate-100 text-slate-700 border-slate-200",
+      review: "bg-amber-100 text-amber-700 border-amber-200"
+    };
+    const labels = {
+      published: "Veröffentlicht",
+      draft: "Entwurf",
+      review: "Review"
+    };
+    return (
+      <Badge variant="outline" className={variants[status] || variants.draft}>
+        {labels[status] || status}
+      </Badge>
+    );
+  };
+
+  // Highlight matching text
+  const highlightMatch = (text, query) => {
+    if (!query || !text) return text;
+    const parts = text.split(new RegExp(`(${query})`, 'gi'));
+    return parts.map((part, i) => 
+      part.toLowerCase() === query.toLowerCase() ? 
+        <mark key={i} className="bg-yellow-200 text-yellow-900 px-0.5 rounded">{part}</mark> : part
+    );
+  };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-fadeIn" data-testid="search-page">
+    <div className="max-w-4xl mx-auto space-y-6 animate-fadeIn" data-testid="search-page">
       {/* Header */}
-      <div className="text-center space-y-4">
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-50 text-indigo-700 text-sm font-medium">
-          <Sparkles className="w-4 h-4" />
-          KI-gestützte Suche
-        </div>
-        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight font-['Plus_Jakarta_Sans']">
-          Was möchten Sie wissen?
+      <div className="text-center space-y-2">
+        <h1 className="text-3xl font-bold tracking-tight">
+          Wissenssuche
         </h1>
-        <p className="text-muted-foreground max-w-xl mx-auto">
-          Stellen Sie Ihre Frage in natürlicher Sprache. Unsere KI durchsucht die 
-          Wissensdatenbank und generiert eine präzise Antwort.
+        <p className="text-muted-foreground">
+          Durchsuchen Sie alle Artikel, Dokumente und Kategorien
         </p>
       </div>
 
       {/* Search Input */}
-      <form onSubmit={handleSearch} className="relative">
-        <div className="relative">
-          <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-          <Input
-            type="text"
-            placeholder="Stellen Sie Ihre Frage..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="h-14 pl-12 pr-32 text-lg rounded-xl border-2 focus:border-indigo-500 focus:ring-indigo-500"
-            data-testid="search-input"
-          />
-          <Button
-            type="submit"
-            disabled={loading || !query.trim()}
-            className="absolute right-2 top-1/2 -translate-y-1/2 bg-indigo-600 hover:bg-indigo-700"
-            data-testid="search-submit-btn"
-          >
-            {loading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              "Suchen"
-            )}
-          </Button>
-        </div>
-      </form>
-
-      {/* Example Queries */}
-      {!result && (
-        <div className="space-y-3">
-          <p className="text-sm text-muted-foreground text-center">Beispielfragen:</p>
-          <div className="flex flex-wrap justify-center gap-2">
-            {exampleQueries.map((q, i) => (
-              <button
-                key={i}
-                onClick={() => setQuery(q)}
-                className="px-4 py-2 rounded-full bg-muted hover:bg-muted/80 text-sm transition-colors"
+      <Card className="shadow-lg border-2 border-transparent focus-within:border-red-200 transition-colors">
+        <CardContent className="p-4">
+          <div className="relative">
+            <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Suchbegriff eingeben... (z.B. Westkanada, Mietwagen, Hotels)"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="pl-12 pr-12 h-14 text-lg border-0 focus-visible:ring-0 bg-transparent"
+              data-testid="search-input"
+              autoFocus
+            />
+            {query && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={clearSearch}
+                className="absolute right-2 top-1/2 -translate-y-1/2"
               >
-                {q}
-              </button>
+                <X className="w-4 h-4" />
+              </Button>
+            )}
+            {loading && (
+              <Loader2 className="absolute right-12 top-1/2 -translate-y-1/2 w-5 h-5 animate-spin text-muted-foreground" />
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Recent Searches (when no query) */}
+      {!query && recentSearches.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <Clock className="w-4 h-4" />
+            Letzte Suchen
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {recentSearches.map((search, i) => (
+              <Button
+                key={i}
+                variant="outline"
+                size="sm"
+                onClick={() => setQuery(search)}
+                className="rounded-full"
+              >
+                {search}
+              </Button>
             ))}
           </div>
         </div>
       )}
 
-      {/* Loading State */}
-      {loading && (
-        <Card className="border-2 border-indigo-100 ai-glow">
-          <CardContent className="p-8">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center">
-                <Brain className="w-6 h-6 text-indigo-600 animate-pulse" />
-              </div>
-              <div className="space-y-2 flex-1">
-                <div className="h-4 bg-indigo-100 rounded animate-pulse w-3/4" />
-                <div className="h-4 bg-indigo-100 rounded animate-pulse w-1/2" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Search Results */}
+      {hasSearched && (
+        <div className="space-y-4">
+          {/* Result Count */}
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              {results.length === 0 ? (
+                "Keine Ergebnisse gefunden"
+              ) : (
+                <>{results.length} Artikel gefunden</>
+              )}
+            </p>
+          </div>
 
-      {/* Results */}
-      {result && !loading && (
-        <div className="space-y-6 animate-fadeIn">
-          {/* AI Answer */}
-          <Card className="border-2 border-indigo-100 overflow-hidden">
-            <div className="bg-gradient-to-r from-indigo-500 to-indigo-600 p-4">
-              <div className="flex items-center gap-3 text-white">
-                <Brain className="w-6 h-6" />
-                <span className="font-semibold">KI-Antwort</span>
-              </div>
-            </div>
-            <CardContent className="p-6">
-              <div className="prose-knowledge whitespace-pre-wrap" data-testid="ai-answer">
-                {result.answer}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Sources */}
-          {result.sources?.length > 0 && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                <FileText className="w-5 h-5 text-muted-foreground" />
-                Quellen ({result.sources.length})
-              </h3>
-              <div className="grid gap-4">
-                {result.sources.map((source, index) => (
-                  <Card
-                    key={index}
-                    className="hover:shadow-float transition-all duration-300 cursor-pointer"
-                    onClick={() => navigate(`/articles/${source.article_id}`)}
-                    data-testid={`source-${index}`}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="space-y-2 flex-1">
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-semibold">{source.title}</h4>
-                            <Badge 
-                              variant="outline" 
-                              className={`text-xs ${
-                                source.score >= 0.8 ? 'bg-emerald-50 text-emerald-700 border-emerald-300' :
-                                source.score >= 0.6 ? 'bg-amber-50 text-amber-700 border-amber-300' :
-                                'bg-slate-50 text-slate-700 border-slate-300'
-                              }`}
-                            >
-                              {Math.round(source.score * 100)}% Relevanz
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-muted-foreground">
-                            {source.content_snippet?.includes('...') ? (
-                              <span dangerouslySetInnerHTML={{ 
-                                __html: source.content_snippet
-                                  .replace(/\.\.\./g, '<span class="text-xs text-muted-foreground/50">...</span>')
-                              }} />
-                            ) : (
-                              source.content_snippet
-                            )}
-                          </p>
+          {/* Results List */}
+          {results.length > 0 && (
+            <div className="space-y-3">
+              {results.map((result) => (
+                <Card 
+                  key={result.article_id}
+                  className="group cursor-pointer hover:shadow-md hover:border-red-200 transition-all duration-200"
+                  onClick={() => handleArticleClick(result.article_id)}
+                  data-testid={`search-result-${result.article_id}`}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0 space-y-2">
+                        {/* Title */}
+                        <div className="flex items-center gap-3">
+                          <FileText className="w-5 h-5 text-red-500 shrink-0" />
+                          <h3 className="font-semibold text-lg group-hover:text-red-600 transition-colors truncate">
+                            {highlightMatch(result.title, query)}
+                          </h3>
                         </div>
-                        <Button variant="ghost" size="icon">
-                          <ExternalLink className="w-4 h-4" />
-                        </Button>
+
+                        {/* Snippet */}
+                        <p className="text-sm text-muted-foreground line-clamp-2 pl-8">
+                          {highlightMatch(result.content_snippet, query)}
+                        </p>
+
+                        {/* Meta */}
+                        <div className="flex items-center gap-3 pl-8 text-xs text-muted-foreground">
+                          {result.category_name && (
+                            <span className="flex items-center gap-1">
+                              <FolderTree className="w-3 h-3" />
+                              {result.category_name}
+                            </span>
+                          )}
+                          {result.updated_at && (
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {new Date(result.updated_at).toLocaleDateString('de-DE')}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+
+                      {/* Right Side */}
+                      <div className="flex flex-col items-end gap-2 shrink-0">
+                        {getStatusBadge(result.status)}
+                        <div className="flex items-center gap-1 text-sm text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+                          <span>Öffnen</span>
+                          <ArrowRight className="w-4 h-4" />
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           )}
 
-          {/* No Sources Found */}
-          {result.sources?.length === 0 && (
+          {/* No Results */}
+          {results.length === 0 && !loading && (
             <Card className="border-dashed">
-              <CardContent className="p-8 text-center">
-                <FileText className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3" />
-                <p className="text-muted-foreground">
-                  Keine passenden Artikel gefunden. Erstellen Sie einen neuen Wissensartikel.
+              <CardContent className="py-12 text-center">
+                <SearchIcon className="w-12 h-12 text-muted-foreground/50 mx-auto mb-4" />
+                <h3 className="font-medium text-lg mb-2">Keine Ergebnisse</h3>
+                <p className="text-muted-foreground text-sm max-w-md mx-auto">
+                  Für "{query}" wurden keine Artikel gefunden. 
+                  Versuchen Sie es mit anderen Suchbegriffen oder prüfen Sie die Schreibweise.
                 </p>
-                <Button 
-                  variant="outline" 
-                  className="mt-4"
-                  onClick={() => navigate("/articles/new")}
-                >
-                  Artikel erstellen
-                </Button>
               </CardContent>
             </Card>
           )}
-
-          {/* New Search */}
-          <div className="text-center">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setResult(null);
-                setQuery("");
-              }}
-              data-testid="new-search-btn"
-            >
-              Neue Suche
-            </Button>
-          </div>
         </div>
+      )}
+
+      {/* Initial State */}
+      {!hasSearched && !query && (
+        <Card className="border-dashed">
+          <CardContent className="py-12 text-center">
+            <SearchIcon className="w-12 h-12 text-muted-foreground/50 mx-auto mb-4" />
+            <h3 className="font-medium text-lg mb-2">Suche starten</h3>
+            <p className="text-muted-foreground text-sm max-w-md mx-auto">
+              Geben Sie einen Suchbegriff ein, um Artikel zu finden. 
+              Die Suche durchsucht Titel, Inhalt und Tags.
+            </p>
+          </CardContent>
+        </Card>
       )}
     </div>
   );
